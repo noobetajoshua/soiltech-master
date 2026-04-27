@@ -26,15 +26,19 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _runPredict() async {
     if (_selectedImage == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Please select an image first')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an image first')),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final predictResult = await SoilApi.predict(_selectedImage!, _wetDryScore);
+      final predictResult = await SoilApi.predict(
+        _selectedImage!,
+        _wetDryScore,
+      );
 
       if (!mounted) return;
 
@@ -48,8 +52,9 @@ class _ScanScreenState extends State<ScanScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -63,10 +68,7 @@ class _ScanScreenState extends State<ScanScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Soil Scan')),
       body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal: w * 0.05,
-          vertical: h * 0.02,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: h * 0.02),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
