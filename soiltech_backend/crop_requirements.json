@@ -1,0 +1,58 @@
+{
+  "rice": {
+    "suitable_soil_types": ["clay", "loamy", "silt"],
+    "unsuitable_soil_types": ["sandy", "peat"],
+    "required_om": ["moderate", "high"],
+    "required_moisture": ["moderate", "high"],
+    "required_drainage": ["poor", "moderate"]
+  },
+  "corn": {
+    "suitable_soil_types": ["loamy", "sandy", "silt"],
+    "unsuitable_soil_types": ["clay", "peat"],
+    "required_om": ["moderate", "high"],
+    "required_moisture": ["moderate"],
+    "required_drainage": ["good", "moderate"]
+  },
+  "tomato": {
+    "suitable_soil_types": ["loamy", "silt"],
+    "unsuitable_soil_types": ["clay", "sandy", "peat"],
+    "required_om": ["moderate", "high"],
+    "required_moisture": ["moderate"],
+    "required_drainage": ["good"]
+  },
+  "eggplant": {
+    "suitable_soil_types": ["loamy", "silt", "sandy"],
+    "unsuitable_soil_types": ["clay", "peat"],
+    "required_om": ["moderate", "high"],
+    "required_moisture": ["moderate"],
+    "required_drainage": ["good", "moderate"]
+  },
+  "camote": {
+    "suitable_soil_types": ["sandy", "loamy"],
+    "unsuitable_soil_types": ["clay", "peat", "silt"],
+    "required_om": ["low", "moderate"],
+    "required_moisture": ["low", "moderate"],
+    "required_drainage": ["good", "excessive"]
+  },
+  "pechay": {
+    "suitable_soil_types": ["loamy", "silt"],
+    "unsuitable_soil_types": ["sandy", "peat", "clay"],
+    "required_om": ["moderate", "high"],
+    "required_moisture": ["moderate"],
+    "required_drainage": ["good", "moderate"]
+  },
+  "cassava": {
+    "suitable_soil_types": ["sandy", "loamy"],
+    "unsuitable_soil_types": ["clay", "peat"],
+    "required_om": ["low", "moderate"],
+    "required_moisture": ["low", "moderate"],
+    "required_drainage": ["good", "excessive"]
+  },
+  "kangkong": {
+    "suitable_soil_types": ["clay", "loamy", "silt"],
+    "unsuitable_soil_types": ["sandy"],
+    "required_om": ["moderate", "high"],
+    "required_moisture": ["high"],
+    "required_drainage": ["poor", "moderate"]
+  }
+}

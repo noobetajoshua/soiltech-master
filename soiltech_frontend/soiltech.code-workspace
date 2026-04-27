@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../soiltech_backend"
+    },
+    {
+      "path": "lib"
+    },
+    {
+      "path": "assets"
+    }
+  ],
+  "settings": {},
+}
