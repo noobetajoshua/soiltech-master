@@ -1,21 +1,21 @@
 {
-	"folders": [
-		{
-			"name": "assets",
-			"path": "assets"
-		},
-		{
-			"name": "soiltech_backend",
-			"path": "../soiltech_backend"
-		},
-		{
-			"name": "lib",
-			"path": "lib"
-		},
-		{
-			"name": "soiltech_frontend",
-			"path": "."
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "name": "soiltech_backend",
+      "path": "../soiltech_backend",
+    },
+    {
+      "name": "lib",
+      "path": "lib",
+    },
+    {
+      "name": "assets",
+      "path": "assets",
+    },
+    {
+      "name": "soiltech_frontend",
+      "path": ".",
+    },
+  ],
+  "settings": {},
 }

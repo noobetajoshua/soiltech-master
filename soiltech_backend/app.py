@@ -16,7 +16,7 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-CLASS_NAMES = ['sandy', 'silt']
+CLASS_NAMES = ['clay', 'loamy', 'peat', 'sandy', 'silt']
 
 BASE = os.path.dirname(__file__)
 
@@ -26,7 +26,7 @@ base_model.trainable = False
 x = base_model.output
 x = layers.GlobalAveragePooling2D()(x)
 x = layers.Dense(128, activation='relu')(x)
-output = layers.Dense(2, activation='softmax')(x)
+output = layers.Dense(5, activation='softmax')(x)
 model = models.Model(inputs=base_model.input, outputs=output)
 model.load_weights(os.path.join(BASE, 'soil_model_v2.weights.h5'))
 
