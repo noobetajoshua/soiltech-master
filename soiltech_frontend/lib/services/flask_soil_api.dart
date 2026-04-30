@@ -5,6 +5,9 @@ import 'dart:convert';
 const String baseUrl = 'http://10.0.2.2:5000';
 
 class SoilApi {
+  // ─────────────────────────────────────────────
+  // PREDICT
+  // ─────────────────────────────────────────────
   static Future<Map<String, dynamic>> predict(
     File imageFile,
     int wetDryScore,
@@ -21,6 +24,9 @@ class SoilApi {
     return jsonDecode(body);
   }
 
+  // ─────────────────────────────────────────────
+  // RECOMMEND
+  // ─────────────────────────────────────────────
   static Future<Map<String, dynamic>> recommend({
     required String soilType,
     required String omLevel,
@@ -41,6 +47,9 @@ class SoilApi {
     return jsonDecode(response.body);
   }
 
+  // ─────────────────────────────────────────────
+  // EXPLAIN
+  // ─────────────────────────────────────────────
   static Future<Map<String, dynamic>> explain({
     required String soilType,
     required String omLevel,
@@ -59,5 +68,41 @@ class SoilApi {
       }),
     );
     return jsonDecode(response.body);
+  }
+
+  // ─────────────────────────────────────────────
+  // STEP 8 — CHAT
+  // Sends user message + scan context + full history
+  // to /chat. Groq replies based on this scan only.
+  // ─────────────────────────────────────────────
+  static Future<String> chat({
+    required String soilType,
+    required String omLevel,
+    required String cropName,
+    required List<String> amendments,
+    required List<Map<String, String>> conversationHistory,
+    required String userMessage,
+  }) async {
+    final uri = Uri.parse('$baseUrl/chat');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'soil_type': soilType,
+        'om_level': omLevel,
+        'crop_name': cropName,
+        'amendments': amendments,
+        'conversation_history': conversationHistory,
+        'user_message': userMessage,
+      }),
+    );
+
+    final decoded = jsonDecode(response.body);
+
+    if (decoded['error'] != null) {
+      throw Exception(decoded['error']);
+    }
+
+    return decoded['reply'] as String;
   }
 }

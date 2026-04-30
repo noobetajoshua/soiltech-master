@@ -210,5 +210,7 @@ Speak directly to the farmer."""
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+from chat_route import chat_bp
+app.register_blueprint(chat_bp)
 if __name__ == '__main__':
     app.run(debug=True)
