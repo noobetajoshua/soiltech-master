@@ -1,6 +1,4 @@
-// lib/history_screen.dart
-// STEP 12 — History screen: list of past scan cards from scan_history
-// STEP 13 — Each card opens results_screen with that scan's chat thread
+// lib/widgets/history_screen.dart
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -117,21 +115,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                     dateLabel: _formatDate(scan['scanned_at']),
                     onTap: () {
-                      // STEP 13 — Open results screen with this scan's data
-                      // Pass scanId so the chat thread loads from Supabase
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ResultsScreen(
-                            // predictResult carries the soil/om/confidence data
                             predictResult: {
                               'soil_type': scan['soil_type'] ?? '',
                               'om_level': scan['om_level'] ?? '',
                               'confidence': scan['confidence'] ?? '',
-                              'crop_name': scan['crop_name'] ?? '',
                             },
-                            // History view has no image file — use placeholder
                             imageFile: File(''),
+                            // ── These come from saved scan_history row ──
+                            cropName: scan['crop_name'] ?? '',
+                            drainageScore: 0, // not stored — default to normal
                             scanId: scan['id'] as String,
                           ),
                         ),
@@ -175,14 +171,11 @@ class _ScanCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Date
               Text(
                 dateLabel,
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
               const SizedBox(height: 6),
-
-              // Soil type + crop
               Text(
                 '${scan['soil_type']?.toString().toUpperCase() ?? '—'} soil',
                 style: const TextStyle(
@@ -195,15 +188,10 @@ class _ScanCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 4),
-
-              // Organic matter + confidence
               Text('Organic Matter: ${scan['om_level'] ?? '—'}'),
               Text('Confidence: ${scan['confidence'] ?? '—'}'),
               const SizedBox(height: 6),
-
-              // Compatibility badge
               Text(compatibilityLabel, style: const TextStyle(fontSize: 13)),
-
               const SizedBox(height: 8),
               const Align(
                 alignment: Alignment.centerRight,

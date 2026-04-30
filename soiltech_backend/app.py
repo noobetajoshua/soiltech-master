@@ -20,7 +20,7 @@ CLASS_NAMES = ['clay', 'loamy', 'peat', 'sandy', 'silt']
 
 BASE = os.path.dirname(__file__)
 
-# Load model
+# ── Load model ─────────────────────────────────────────────────
 base_model = MobileNetV2(input_shape=(224, 224, 3), include_top=False, weights='imagenet')
 base_model.trainable = False
 x = base_model.output
@@ -30,7 +30,7 @@ output = layers.Dense(5, activation='softmax')(x)
 model = models.Model(inputs=base_model.input, outputs=output)
 model.load_weights(os.path.join(BASE, 'soil_model_v2.weights.h5'))
 
-# Load JSON files
+# ── Load JSON files ────────────────────────────────────────────
 with open(os.path.join(BASE, 'soil_profile.json')) as f:
     soil_profile = json.load(f)
 with open(os.path.join(BASE, 'crop_requirements.json')) as f:
@@ -40,6 +40,8 @@ with open(os.path.join(BASE, 'amendments.json')) as f:
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API_KEY)
+
+# ── Helpers ────────────────────────────────────────────────────
 
 def normalize_crop_name(raw_name):
     raw_name = raw_name.strip()
@@ -67,6 +69,7 @@ def normalize_crop_name(raw_name):
     except Exception:
         return raw_name.lower()
 
+
 def estimate_om(image_bytes, wet_dry_score):
     np_arr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -88,9 +91,41 @@ def estimate_om(image_bytes, wet_dry_score):
 
     return om_level, round(float(corrected_v), 2)
 
+# ══════════════════════════════════════════════════════════════
+# ROUTES
+# ══════════════════════════════════════════════════════════════
+
 @app.route('/')
 def index():
     return jsonify({"message": "Soiltech API is running"})
+
+
+@app.route('/crops', methods=['GET'])
+def get_crops():
+    """Returns all available crop names from crop_requirements.json"""
+    return jsonify({'crops': list(crop_requirements.keys())})
+
+
+@app.route('/normalize-crop', methods=['POST'])
+def normalize_crop():
+    """
+    Accepts a raw crop name (Tagalog or English),
+    uses Groq to match it to the closest crop in crop_requirements.json.
+    Returns the matched clean crop key.
+    """
+    data = request.get_json()
+    raw = data.get('crop_name', '').strip()
+
+    if not raw:
+        return jsonify({'error': 'crop_name is required'}), 400
+
+    matched = normalize_crop_name(raw)
+
+    if matched in crop_requirements:
+        return jsonify({'crop': matched})
+    else:
+        return jsonify({'crop': None, 'error': 'No match found'}), 404
+
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -115,25 +150,26 @@ def predict():
     om_level, brightness_value = estimate_om(image_bytes, wet_dry_score)
 
     return jsonify({
-        "soil_type": soil_type,
-        "confidence": f"{confidence:.2f}%",
-        "om_level": om_level,
+        "soil_type"         : soil_type,
+        "confidence"        : f"{confidence:.2f}%",
+        "om_level"          : om_level,
         "om_brightness_value": brightness_value
     })
+
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
     data = request.get_json()
-    soil_type = data.get('soil_type', '').lower()
-    om_level = data.get('om_level', '').lower()
+    soil_type     = data.get('soil_type', '').lower()
+    om_level      = data.get('om_level', '').lower()
     drainage_score = data.get('drainage_score', 0)
-    crop_name = normalize_crop_name(data.get('crop_name', ''))
+    crop_name     = normalize_crop_name(data.get('crop_name', ''))
 
     if crop_name not in crop_requirements:
         return jsonify({'error': f'Crop "{crop_name}" not found'}), 400
 
-    crop = crop_requirements[crop_name]
-    issues = []
+    crop          = crop_requirements[crop_name]
+    issues        = []
     amendment_list = []
 
     if soil_type in crop['unsuitable_soil_types']:
@@ -169,20 +205,21 @@ def recommend():
     amendment_list = list(dict.fromkeys(amendment_list))
 
     return jsonify({
-        'soil_type': soil_type,
-        'crop': crop_name,
+        'soil_type'    : soil_type,
+        'crop'         : crop_name,
         'compatibility': compatibility,
-        'issues': issues,
-        'amendments': amendment_list
+        'issues'       : issues,
+        'amendments'   : amendment_list
     })
+
 
 @app.route('/explain', methods=['POST'])
 def explain():
-    data = request.get_json()
+    data      = request.get_json()
     soil_type = data.get('soil_type', '')
-    om_level = data.get('om_level', '')
+    om_level  = data.get('om_level', '')
     crop_name = data.get('crop_name', '')
-    issues = data.get('issues', [])
+    issues    = data.get('issues', [])
 
     if not soil_type or not crop_name:
         return jsonify({'error': 'Missing soil_type or crop_name'}), 400
@@ -210,7 +247,10 @@ Speak directly to the farmer."""
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# ── Blueprint ──────────────────────────────────────────────────
 from chat_route import chat_bp
 app.register_blueprint(chat_bp)
+
 if __name__ == '__main__':
     app.run(debug=True)

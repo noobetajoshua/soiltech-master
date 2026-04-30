@@ -1,11 +1,16 @@
+// lib/widgets/results_screen.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'services/flask_soil_api.dart';
+import 'package:soiltech/services/flask_soil_api.dart';
+import 'scan_saved_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
   final Map<String, dynamic> predictResult;
   final File imageFile;
+  final String cropName;
+  final int drainageScore;
 
   // When opened from history, scanId is provided so chat loads from Supabase
   final String? scanId;
@@ -14,6 +19,8 @@ class ResultsScreen extends StatefulWidget {
     super.key,
     required this.predictResult,
     required this.imageFile,
+    required this.cropName,
+    required this.drainageScore,
     this.scanId,
   });
 
@@ -22,55 +29,56 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
-  // ─── Scan flow state ───────────────────────────────────────
-  int _drainageScore = 0;
-  bool _drainageSubmitted = false;
+  // ── Constants ──────────────────────────────────────────────
+  static const bgColor     = Color(0xFFF1EFEA);
+  static const darkGreen   = Color.fromARGB(255, 114, 168, 127);
+  static const borderColor = Color(0xFF7D9C74);
+  static const textDark    = Color(0xFF0A2418);
 
-  final TextEditingController _cropController = TextEditingController();
-  bool _cropSubmitted = false;
-
+  // ── Scan flow state ────────────────────────────────────────
   Map<String, dynamic>? _recommendResult;
   Map<String, dynamic>? _explainResult;
 
   bool _isLoadingRecommend = false;
-  bool _isLoadingExplain = false;
-  bool _isSaved = false;
+  bool _isLoadingExplain   = false;
+  bool _isSaved            = false;
 
   // Supabase scan_id assigned after saving
   String? _scanId;
 
-  // ─── Chat state ────────────────────────────────────────────
-  // Each entry: {'role': 'user'|'assistant', 'content': '...'}
+  // ── Chat state ─────────────────────────────────────────────
   final List<Map<String, String>> _chatHistory = [];
-  final TextEditingController _chatController = TextEditingController();
-  final ScrollController _chatScroll = ScrollController();
+  final TextEditingController _chatController  = TextEditingController();
+  final ScrollController _chatScroll           = ScrollController();
   bool _isLoadingChat = false;
-  bool _chatVisible = false;
+  bool _chatVisible   = false;
+
+  // ── Lifecycle ──────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
-    // If opened from history, load existing chat and show it immediately
+
     if (widget.scanId != null) {
-      _scanId = widget.scanId;
-      _chatVisible = true;
-      _drainageSubmitted = true;
-      _cropSubmitted = true;
+      // Opened from history — load existing chat
+      _scanId       = widget.scanId;
+      _chatVisible  = true;
       _loadChatFromSupabase();
+    } else {
+      // Fresh scan — run recommend immediately
+      _runRecommend();
     }
   }
 
   @override
   void dispose() {
-    _cropController.dispose();
     _chatController.dispose();
     _chatScroll.dispose();
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // STEP 11 — Load previous messages from Supabase
-  // ─────────────────────────────────────────────────────────────
+  // ── Load chat from Supabase ────────────────────────────────
+
   Future<void> _loadChatFromSupabase() async {
     if (_scanId == null) return;
     try {
@@ -84,20 +92,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _chatHistory.clear();
         for (final row in rows) {
           _chatHistory.add({
-            'role': row['role'] as String,
+            'role'   : row['role']    as String,
             'content': row['message'] as String,
           });
         }
       });
       _scrollToBottom();
-    } catch (e) {
-      // Non-blocking — chat still works even if load fails
+    } catch (_) {
+      // Non-blocking
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // STEP 10 — Save a single message to Supabase
-  // ─────────────────────────────────────────────────────────────
+  // ── Save chat message ──────────────────────────────────────
+
   Future<void> _saveChatMessage(String role, String message) async {
     if (_scanId == null) return;
     final user = Supabase.instance.client.auth.currentUser;
@@ -107,24 +114,22 @@ class _ResultsScreenState extends State<ResultsScreen> {
       await Supabase.instance.client.from('chat_messages').insert({
         'scan_id': _scanId!,
         'user_id': user.id,
-        'role': role,
+        'role'   : role,
         'message': message,
       });
     } catch (_) {
-      // Save failure is silent — message already shown in UI
+      // Silent — message already shown in UI
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // CHAT SEND
-  // ─────────────────────────────────────────────────────────────
+  // ── Send chat message ──────────────────────────────────────
+
   Future<void> _sendChatMessage() async {
     final text = _chatController.text.trim();
     if (text.isEmpty) return;
 
-    final userEntry = {'role': 'user', 'content': text};
     setState(() {
-      _chatHistory.add(userEntry);
+      _chatHistory.add({'role': 'user', 'content': text});
       _chatController.clear();
       _isLoadingChat = true;
     });
@@ -138,33 +143,24 @@ class _ResultsScreenState extends State<ResultsScreen> {
       );
 
       final reply = await SoilApi.chat(
-        soilType: widget.predictResult['soil_type'] ?? '',
-        omLevel: widget.predictResult['om_level'] ?? '',
-        cropName: _cropController.text.trim().isNotEmpty
-            ? _cropController.text.trim()
-            : (widget.predictResult['crop_name'] ?? ''),
+        soilType : widget.predictResult['soil_type'] ?? '',
+        omLevel  : widget.predictResult['om_level']  ?? '',
+        cropName : widget.cropName,
         amendments: amendments,
-        // Pass only role/content pairs — strip any extra keys
         conversationHistory: _chatHistory
-            .sublist(
-              0,
-              _chatHistory.length - 1,
-            ) // exclude the message just added
+            .sublist(0, _chatHistory.length - 1)
             .map((m) => {'role': m['role']!, 'content': m['content']!})
             .toList(),
         userMessage: text,
       );
 
-      final assistantEntry = {'role': 'assistant', 'content': reply};
-      setState(() => _chatHistory.add(assistantEntry));
+      setState(() => _chatHistory.add({'role': 'assistant', 'content': reply}));
       await _saveChatMessage('assistant', reply);
     } catch (e) {
-      setState(
-        () => _chatHistory.add({
-          'role': 'assistant',
-          'content': 'Sorry, something went wrong. Please try again.',
-        }),
-      );
+      setState(() => _chatHistory.add({
+        'role'   : 'assistant',
+        'content': 'Sorry, something went wrong. Please try again.',
+      }));
     } finally {
       setState(() => _isLoadingChat = false);
       _scrollToBottom();
@@ -183,40 +179,31 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // SCAN FLOW
-  // ─────────────────────────────────────────────────────────────
-  Future<void> _runRecommend() async {
-    if (_cropController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a crop name')));
-      return;
-    }
+  // ── Recommend ──────────────────────────────────────────────
 
-    setState(() {
-      _isLoadingRecommend = true;
-      _cropSubmitted = true;
-    });
+  Future<void> _runRecommend() async {
+    setState(() => _isLoadingRecommend = true);
 
     try {
       final result = await SoilApi.recommend(
-        soilType: widget.predictResult['soil_type'],
-        omLevel: widget.predictResult['om_level'],
-        drainageScore: _drainageScore,
-        cropName: _cropController.text.trim(),
+        soilType     : widget.predictResult['soil_type'],
+        omLevel      : widget.predictResult['om_level'],
+        drainageScore: widget.drainageScore,
+        cropName     : widget.cropName,
       );
 
       setState(() => _recommendResult = result);
       await _runExplain(result);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Recommend error: $e')),
+      );
     } finally {
       setState(() => _isLoadingRecommend = false);
     }
   }
+
+  // ── Explain ────────────────────────────────────────────────
 
   Future<void> _runExplain(Map<String, dynamic> recommendResult) async {
     setState(() => _isLoadingExplain = true);
@@ -224,21 +211,23 @@ class _ResultsScreenState extends State<ResultsScreen> {
     try {
       final issues = List<String>.from(recommendResult['issues'] ?? []);
       final result = await SoilApi.explain(
-        soilType: widget.predictResult['soil_type'],
-        omLevel: widget.predictResult['om_level'],
-        cropName: _cropController.text.trim(),
-        issues: issues,
+        soilType : widget.predictResult['soil_type'],
+        omLevel  : widget.predictResult['om_level'],
+        cropName : widget.cropName,
+        issues   : issues,
       );
       setState(() => _explainResult = result);
       await _saveToSupabase(recommendResult, result);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Explain error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Explain error: $e')),
+      );
     } finally {
       setState(() => _isLoadingExplain = false);
     }
   }
+
+  // ── Save to Supabase ───────────────────────────────────────
 
   Future<void> _saveToSupabase(
     Map<String, dynamic> recommend,
@@ -248,197 +237,176 @@ class _ResultsScreenState extends State<ResultsScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
-      // Insert and capture the returned scan id
       final inserted = await Supabase.instance.client
           .from('scan_history')
           .insert({
-            'user_id': user.id,
-            'soil_type': widget.predictResult['soil_type'],
-            'om_level': widget.predictResult['om_level'],
-            'confidence': widget.predictResult['confidence'],
-            'crop_name': _cropController.text.trim(),
+            'user_id'      : user.id,
+            'soil_type'    : widget.predictResult['soil_type'],
+            'om_level'     : widget.predictResult['om_level'],
+            'confidence'   : widget.predictResult['confidence'],
+            'crop_name'    : widget.cropName,
             'compatibility': recommend['compatibility'],
-            'issues': recommend['issues'],
-            'amendments': recommend['amendments'],
-            'explanation': explain['explanation'],
+            'issues'       : recommend['issues'],
+            'amendments'   : recommend['amendments'],
+            'explanation'  : explain['explanation'],
           })
           .select('id')
           .single();
 
       setState(() {
-        _scanId = inserted['id'] as String;
-        _isSaved = true;
-        _chatVisible = true; // Show chat only after scan is saved
+        _scanId      = inserted['id'] as String;
+        _isSaved     = true;
+        _chatVisible = true;
       });
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Save error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Save error: $e')),
+      );
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // UI
-  // ─────────────────────────────────────────────────────────────
+  // ── Navigate to Scan Saved ─────────────────────────────────
+
+  void _goToScanSaved() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const ScanSavedScreen()),
+    );
+  }
+
+  // ── Build ──────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    final h = MediaQuery.of(context).size.height;
+    final w       = MediaQuery.of(context).size.width;
+    final h       = MediaQuery.of(context).size.height;
     final predict = widget.predictResult;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Results')),
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: bgColor,
+        elevation: 0,
+        title: Text(
+          'Scan Results',
+          style: TextStyle(
+            color: textDark,
+            fontWeight: FontWeight.w700,
+            fontSize: w * 0.045,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: textDark),
+      ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: h * 0.02),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── SOIL ANALYSIS ──────────────────────────────────
-            const Text('--- SOIL ANALYSIS ---'),
+
+            // ── Step 5 — SOIL ANALYSIS ─────────────────────
+            _sectionLabel('✔ Soil Scan Complete'),
             SizedBox(height: h * 0.01),
-            Text('Soil Type: ${predict['soil_type']}'),
-            Text('Confidence: ${predict['confidence']}'),
-            Text('Organic Matter: ${predict['om_level']}'),
-            SizedBox(height: h * 0.02),
-
-            // ── DRAINAGE ───────────────────────────────────────
-            if (!_drainageSubmitted) ...[
-              const Text('--- HOW DOES WATER BEHAVE IN YOUR SOIL? ---'),
-              SizedBox(height: h * 0.01),
-              RadioListTile<int>(
-                title: const Text('Water pools and stays'),
-                value: -1,
-                groupValue: _drainageScore,
-                onChanged: (v) => setState(() => _drainageScore = v!),
-              ),
-              RadioListTile<int>(
-                title: const Text('Normal absorption'),
-                value: 0,
-                groupValue: _drainageScore,
-                onChanged: (v) => setState(() => _drainageScore = v!),
-              ),
-              RadioListTile<int>(
-                title: const Text('Water drains very fast'),
-                value: 1,
-                groupValue: _drainageScore,
-                onChanged: (v) => setState(() => _drainageScore = v!),
-              ),
-              SizedBox(height: h * 0.01),
-              SizedBox(
-                width: w,
-                height: h * 0.06,
-                child: ElevatedButton(
-                  onPressed: () => setState(() => _drainageSubmitted = true),
-                  child: const Text('Confirm Drainage'),
-                ),
-              ),
-            ] else if (widget.scanId == null) ...[
-              Text(
-                'Drainage: ${_drainageScore == -1
+            _infoCard(w, h, [
+              _infoRow('Soil Type', predict['soil_type'] ?? '—'),
+              _infoRow('Organic Matter', predict['om_level'] ?? '—'),
+              _infoRow('Confidence', predict['confidence'] ?? '—'),
+              _infoRow('Crop', widget.cropName),
+              _infoRow(
+                'Drainage',
+                widget.drainageScore == -1
                     ? 'Poor'
-                    : _drainageScore == 1
-                    ? 'Excessive'
-                    : 'Normal'}',
+                    : widget.drainageScore == 1
+                        ? 'Excessive'
+                        : 'Normal',
               ),
+            ]),
+
+            SizedBox(height: h * 0.025),
+
+            // ── RECOMMENDATION ─────────────────────────────
+            if (_isLoadingRecommend) ...[
+              const Center(child: CircularProgressIndicator(color: darkGreen)),
             ],
 
-            SizedBox(height: h * 0.02),
-
-            // ── CROP INPUT ─────────────────────────────────────
-            if (_drainageSubmitted && !_cropSubmitted) ...[
-              const Text('--- WHAT CROP DO YOU WANT TO PLANT? ---'),
-              SizedBox(height: h * 0.01),
-              TextField(
-                controller: _cropController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. rice, mais, kamote',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              SizedBox(height: h * 0.01),
-              SizedBox(
-                width: w,
-                height: h * 0.06,
-                child: _isLoadingRecommend
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton(
-                        onPressed: _runRecommend,
-                        child: const Text('Get Recommendation'),
-                      ),
-              ),
-            ],
-
-            // ── RECOMMENDATION ─────────────────────────────────
             if (_recommendResult != null) ...[
-              SizedBox(height: h * 0.02),
-              const Text('--- RECOMMENDATION ---'),
+              _sectionLabel('RECOMMENDATION'),
               SizedBox(height: h * 0.01),
-              Text('Crop: ${_recommendResult!['crop']}'),
-              Text('Compatibility: ${_recommendResult!['compatibility']}'),
-              SizedBox(height: h * 0.01),
-              const Text('Issues:'),
-              ...List<String>.from(
-                _recommendResult!['issues'],
-              ).map((i) => Text('- $i')),
-              SizedBox(height: h * 0.01),
-              const Text('What to fix:'),
-              ...List<String>.from(
-                _recommendResult!['amendments'],
-              ).map((a) => Text('- $a')),
+              _infoCard(w, h, [
+                _infoRow('Crop', _recommendResult!['crop'] ?? '—'),
+                _infoRow('Compatibility', _recommendResult!['compatibility'] ?? '—'),
+              ]),
+
+              if ((List<String>.from(_recommendResult!['issues'])).isNotEmpty) ...[
+                SizedBox(height: h * 0.015),
+                _sectionLabel('Issues'),
+                SizedBox(height: h * 0.008),
+                ...List<String>.from(_recommendResult!['issues'])
+                    .map((i) => _bulletItem(w, i, Colors.red.shade300)),
+              ],
+
+              SizedBox(height: h * 0.015),
+              _sectionLabel('What to fix'),
+              SizedBox(height: h * 0.008),
+              ...List<String>.from(_recommendResult!['amendments'])
+                  .map((a) => _bulletItem(w, a, darkGreen)),
             ],
 
-            // ── EXPLANATION ────────────────────────────────────
+            // ── EXPLANATION ────────────────────────────────
             if (_isLoadingExplain) ...[
               SizedBox(height: h * 0.02),
-              const Text('Getting explanation...'),
-              const Center(child: CircularProgressIndicator()),
+              const Center(child: CircularProgressIndicator(color: darkGreen)),
             ],
 
             if (_explainResult != null) ...[
-              SizedBox(height: h * 0.02),
-              const Text('--- WHAT HAPPENS IF YOU IGNORE THIS ---'),
+              SizedBox(height: h * 0.025),
+              _sectionLabel('WHAT HAPPENS IF YOU IGNORE THIS'),
               SizedBox(height: h * 0.01),
-              Text(_explainResult!['explanation']),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(w * 0.04),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Text(
+                  _explainResult!['explanation'] ?? '',
+                  style: TextStyle(
+                    fontSize: w * 0.037,
+                    color: textDark,
+                    height: 1.5,
+                  ),
+                ),
+              ),
             ],
 
-            if (_isSaved) ...[
-              SizedBox(height: h * 0.02),
-              const Text('Scan saved successfully.'),
-            ],
-
-            // ─────────────────────────────────────────────────────
-            // STEP 9 — CHAT SECTION
-            // Appears only after scan is saved (scanId exists)
-            // ─────────────────────────────────────────────────────
+            // ── CHAT ───────────────────────────────────────
             if (_chatVisible) ...[
               SizedBox(height: h * 0.03),
               const Divider(),
-              const Text(
-                '--- ASK ABOUT THIS SCAN ---',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              _sectionLabel('ASK ABOUT THIS SCAN'),
               SizedBox(height: h * 0.01),
 
-              // Message list
               Container(
                 height: h * 0.35,
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white,
+                  border: Border.all(color: borderColor),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: _chatHistory.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'Ask anything about your soil scan.',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Colors.grey.shade400),
                         ),
                       )
                     : ListView.builder(
                         controller: _chatScroll,
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(10),
                         itemCount: _chatHistory.length,
                         itemBuilder: (context, index) {
-                          final msg = _chatHistory[index];
+                          final msg    = _chatHistory[index];
                           final isUser = msg['role'] == 'user';
                           return Align(
                             alignment: isUser
@@ -450,11 +418,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               constraints: BoxConstraints(maxWidth: w * 0.75),
                               decoration: BoxDecoration(
                                 color: isUser
-                                    ? Colors.green.shade100
-                                    : Colors.grey.shade200,
+                                    ? darkGreen.withOpacity(0.15)
+                                    : Colors.grey.shade100,
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Text(msg['content'] ?? ''),
+                              child: Text(
+                                msg['content'] ?? '',
+                                style: TextStyle(fontSize: w * 0.035),
+                              ),
                             ),
                           );
                         },
@@ -464,37 +435,157 @@ class _ResultsScreenState extends State<ResultsScreen> {
               if (_isLoadingChat)
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(
+                    child: CircularProgressIndicator(color: darkGreen),
+                  ),
                 ),
 
               SizedBox(height: h * 0.01),
 
-              // Input row
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _chatController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Ask about this soil scan...',
-                        border: OutlineInputBorder(),
+                        hintStyle: TextStyle(color: Colors.grey.shade400),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: borderColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: darkGreen),
+                        ),
                         isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                       ),
                       onSubmitted: (_) => _sendChatMessage(),
                     ),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.send),
+                    icon: const Icon(Icons.send, color: darkGreen),
                     onPressed: _isLoadingChat ? null : _sendChatMessage,
                   ),
                 ],
               ),
+
+              // ── Save Scan button ────────────────────────
+              SizedBox(height: h * 0.025),
+              if (_isSaved)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _goToScanSaved,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: darkGreen,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: h * 0.02),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Save Scan →',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
             ],
 
             SizedBox(height: h * 0.04),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Reusable widgets ───────────────────────────────────────
+
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade500,
+        letterSpacing: 0.8,
+      ),
+    );
+  }
+
+  Widget _infoCard(double w, double h, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.04),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: textDark,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bulletItem(double w, String text, Color dotColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: w * 0.035, color: textDark),
+            ),
+          ),
+        ],
       ),
     );
   }
