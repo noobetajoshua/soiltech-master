@@ -28,11 +28,13 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
+  // ── Constants ──────────────────────────────────────────────
   static const bgColor = Color(0xFFF1EFEA);
   static const darkGreen = Color.fromARGB(255, 114, 168, 127);
   static const borderColor = Color(0xFF7D9C74);
   static const textDark = Color(0xFF0A2418);
 
+  // ── Scan flow state ────────────────────────────────────────
   Map<String, dynamic>? _recommendResult;
   Map<String, dynamic>? _explainResult;
 
@@ -43,11 +45,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
   String? _scanId;
   String _farmerName = 'Kuya';
 
+  // ── Chat state ─────────────────────────────────────────────
   final List<Map<String, String>> _chatHistory = [];
   final TextEditingController _chatController = TextEditingController();
   final ScrollController _chatScroll = ScrollController();
   bool _isLoadingChat = false;
   bool _chatVisible = false;
+
+  // ── Lifecycle ──────────────────────────────────────────────
 
   @override
   void initState() {
@@ -62,8 +67,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
     super.dispose();
   }
 
-  // ── Init — await name first, then proceed ──────────────────
-
   Future<void> _init() async {
     await _loadFarmerName();
     if (widget.scanId != null) {
@@ -75,7 +78,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
-  // ── Load username from farmer_profile ──────────────────────
+  // ── Load farmer name ───────────────────────────────────────
 
   Future<void> _loadFarmerName() async {
     try {
@@ -83,9 +86,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       if (mounted) {
         setState(() => _farmerName = profile?['username'] ?? 'Kuya');
       }
-    } catch (_) {
-      // fallback stays as 'Kuya'
-    }
+    } catch (_) {}
   }
 
   // ── Load chat from Supabase ────────────────────────────────
@@ -98,6 +99,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           .select('role, message')
           .eq('scan_id', _scanId!)
           .order('created_at');
+
       setState(() {
         _chatHistory.clear();
         for (final row in rows) {
@@ -219,7 +221,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         omLevel: widget.predictResult['om_level'],
         cropName: widget.cropName,
         issues: issues,
-        farmerName: _farmerName,  
+        farmerName: _farmerName,
       );
       setState(() => _explainResult = result);
       await _saveToSupabase(recommendResult, result);
@@ -234,7 +236,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
-  // ── Save to Supabase ───────────────────────────────────────
+  // ── Save to Supabase + upload image ────────────────────────
 
   Future<void> _saveToSupabase(
     Map<String, dynamic> recommend,
@@ -243,6 +245,31 @@ class _ResultsScreenState extends State<ResultsScreen> {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
+
+      // ── Upload image to scan-images bucket ────────────────
+      String? imageUrl;
+      try {
+        final fileBytes = await widget.imageFile.readAsBytes();
+        final fileName =
+            '${user.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        await Supabase.instance.client.storage
+            .from('scan-images')
+            .uploadBinary(
+              fileName,
+              fileBytes,
+              fileOptions: const FileOptions(contentType: 'image/jpeg'),
+            );
+
+        imageUrl = Supabase.instance.client.storage
+            .from('scan-images')
+            .getPublicUrl(fileName);
+      } catch (_) {
+        // Upload failure is non-blocking — scan still saves without photo
+        imageUrl = null;
+      }
+
+      // ── Insert scan_history row ───────────────────────────
       final inserted = await Supabase.instance.client
           .from('scan_history')
           .insert({
@@ -255,9 +282,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
             'issues': recommend['issues'],
             'amendments': recommend['amendments'],
             'explanation': explain['explanation'],
+            'image_url': imageUrl,
           })
           .select('id')
           .single();
+
       setState(() {
         _scanId = inserted['id'] as String;
         _isSaved = true;
@@ -307,7 +336,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── SCANNED PHOTO ──────────────────────────────
+            // ── Scanned photo ──────────────────────────────
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Image.file(
@@ -320,7 +349,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
             SizedBox(height: h * 0.025),
 
-            // ── SOIL ANALYSIS ──────────────────────────────
+            // ── Soil analysis ──────────────────────────────
             _sectionLabel('✔ Soil Scan Complete'),
             SizedBox(height: h * 0.01),
             _infoCard(w, h, [
@@ -340,7 +369,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
             SizedBox(height: h * 0.025),
 
-            // ── RECOMMENDATION ─────────────────────────────
+            // ── Recommendation ─────────────────────────────
             if (_isLoadingRecommend)
               const Center(child: CircularProgressIndicator(color: darkGreen)),
 
@@ -374,7 +403,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ).map((a) => _bulletItem(w, a, darkGreen)),
             ],
 
-            // ── EXPLANATION ────────────────────────────────
+            // ── Explanation ────────────────────────────────
             if (_isLoadingExplain) ...[
               SizedBox(height: h * 0.02),
               const Center(child: CircularProgressIndicator(color: darkGreen)),
@@ -403,7 +432,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
             ],
 
-            // ── CHAT ───────────────────────────────────────
+            // ── Chat ───────────────────────────────────────
             if (_chatVisible) ...[
               SizedBox(height: h * 0.03),
               const Divider(),
@@ -465,7 +494,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
               SizedBox(height: h * 0.01),
 
-              // ── Chat input — expands vertically ───────────
+              // ── Chat input ─────────────────────────────────
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -505,6 +534,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
               SizedBox(height: h * 0.025),
 
+              // ── Save Scan button ───────────────────────────
               if (_isSaved)
                 SizedBox(
                   width: double.infinity,
@@ -535,6 +565,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
       ),
     );
   }
+
+  // ── Reusable widgets ───────────────────────────────────────
 
   Widget _sectionLabel(String text) {
     return Text(
