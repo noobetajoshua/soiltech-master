@@ -102,17 +102,11 @@ def index():
 
 @app.route('/crops', methods=['GET'])
 def get_crops():
-    """Returns all available crop names from crop_requirements.json"""
     return jsonify({'crops': list(crop_requirements.keys())})
 
 
 @app.route('/normalize-crop', methods=['POST'])
 def normalize_crop():
-    """
-    Accepts a raw crop name (Tagalog or English),
-    uses Groq to match it to the closest crop in crop_requirements.json.
-    Returns the matched clean crop key.
-    """
     data = request.get_json()
     raw = data.get('crop_name', '').strip()
 
@@ -150,16 +144,16 @@ def predict():
     om_level, brightness_value = estimate_om(image_bytes, wet_dry_score)
 
     return jsonify({
-        "soil_type"         : soil_type,
-        "confidence"        : f"{confidence:.2f}%",
-        "om_level"          : om_level,
+        "soil_type"          : soil_type,
+        "confidence"         : f"{confidence:.2f}%",
+        "om_level"           : om_level,
         "om_brightness_value": brightness_value
     })
 
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
-    data = request.get_json()
+    data          = request.get_json()
     soil_type     = data.get('soil_type', '').lower()
     om_level      = data.get('om_level', '').lower()
     drainage_score = data.get('drainage_score', 0)
@@ -168,8 +162,8 @@ def recommend():
     if crop_name not in crop_requirements:
         return jsonify({'error': f'Crop "{crop_name}" not found'}), 400
 
-    crop          = crop_requirements[crop_name]
-    issues        = []
+    crop           = crop_requirements[crop_name]
+    issues         = []
     amendment_list = []
 
     if soil_type in crop['unsuitable_soil_types']:
@@ -215,27 +209,28 @@ def recommend():
 
 @app.route('/explain', methods=['POST'])
 def explain():
-    data      = request.get_json()
-    soil_type = data.get('soil_type', '')
-    om_level  = data.get('om_level', '')
-    crop_name = data.get('crop_name', '')
-    issues    = data.get('issues', [])
+    data        = request.get_json()
+    soil_type   = data.get('soil_type', '')
+    om_level    = data.get('om_level', '')
+    crop_name   = data.get('crop_name', '')
+    issues      = data.get('issues', [])
+    farmer_name = data.get('farmer_name', 'Kuya')
 
     if not soil_type or not crop_name:
         return jsonify({'error': 'Missing soil_type or crop_name'}), 400
 
     issues_text = ', '.join(issues) if issues else 'none identified'
 
-    prompt = f"""You are an agricultural advisor speaking to a Filipino farmer.
+    prompt = f"""You are an agricultural advisor speaking directly to a Filipino farmer named {farmer_name}.
 Soil type: {soil_type}
 Organic matter level: {om_level}
 Crop chosen: {crop_name}
 Issues identified: {issues_text}
 
-In 3 to 4 plain sentences, explain what will likely happen if the farmer 
-plants {crop_name} in this soil without fixing the issues. 
-Be specific, practical, and avoid technical jargon. 
-Speak directly to the farmer."""
+In 3 to 4 plain sentences, explain what will likely happen if {farmer_name} 
+plants {crop_name} in this soil without fixing the issues.
+Address {farmer_name} directly by name at least once.
+Be specific, practical, and avoid technical jargon."""
 
     try:
         response = groq_client.chat.completions.create(
@@ -253,4 +248,4 @@ from chat_route import chat_bp
 app.register_blueprint(chat_bp)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

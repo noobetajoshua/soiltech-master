@@ -55,6 +55,7 @@ class SoilApi {
     required String omLevel,
     required String cropName,
     required List<String> issues,
+    required String farmerName,
   }) async {
     final uri = Uri.parse('$baseUrl/explain');
     final response = await http.post(
@@ -65,15 +66,14 @@ class SoilApi {
         'om_level': omLevel,
         'crop_name': cropName,
         'issues': issues,
+        'farmer_name': farmerName,
       }),
     );
     return jsonDecode(response.body);
   }
 
   // ─────────────────────────────────────────────
-  // STEP 8 — CHAT
-  // Sends user message + scan context + full history
-  // to /chat. Groq replies based on this scan only.
+  // CHAT
   // ─────────────────────────────────────────────
   static Future<String> chat({
     required String soilType,
@@ -82,6 +82,7 @@ class SoilApi {
     required List<String> amendments,
     required List<Map<String, String>> conversationHistory,
     required String userMessage,
+    required String farmerName,
   }) async {
     final uri = Uri.parse('$baseUrl/chat');
     final response = await http.post(
@@ -94,15 +95,12 @@ class SoilApi {
         'amendments': amendments,
         'conversation_history': conversationHistory,
         'user_message': userMessage,
+        'farmer_name': farmerName,
       }),
     );
 
     final decoded = jsonDecode(response.body);
-
-    if (decoded['error'] != null) {
-      throw Exception(decoded['error']);
-    }
-
+    if (decoded['error'] != null) throw Exception(decoded['error']);
     return decoded['reply'] as String;
   }
 }

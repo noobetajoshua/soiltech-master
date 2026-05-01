@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:soiltech/services/flask_soil_api.dart';
+import 'package:soiltech/services/profile/profile_service.dart';
 import 'scan_saved_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
@@ -40,6 +41,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   bool _isSaved = false;
 
   String? _scanId;
+  String _farmerName = 'Kuya';
 
   final List<Map<String, String>> _chatHistory = [];
   final TextEditingController _chatController = TextEditingController();
@@ -50,6 +52,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   void initState() {
     super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _chatController.dispose();
+    _chatScroll.dispose();
+    super.dispose();
+  }
+
+  // ── Init — await name first, then proceed ──────────────────
+
+  Future<void> _init() async {
+    await _loadFarmerName();
     if (widget.scanId != null) {
       _scanId = widget.scanId;
       _chatVisible = true;
@@ -59,12 +75,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _chatController.dispose();
-    _chatScroll.dispose();
-    super.dispose();
+  // ── Load username from farmer_profile ──────────────────────
+
+  Future<void> _loadFarmerName() async {
+    try {
+      final profile = await ProfileService().getFarmerProfile();
+      if (mounted) {
+        setState(() => _farmerName = profile?['username'] ?? 'Kuya');
+      }
+    } catch (_) {
+      // fallback stays as 'Kuya'
+    }
   }
+
+  // ── Load chat from Supabase ────────────────────────────────
 
   Future<void> _loadChatFromSupabase() async {
     if (_scanId == null) return;
@@ -87,6 +111,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
     } catch (_) {}
   }
 
+  // ── Save chat message ──────────────────────────────────────
+
   Future<void> _saveChatMessage(String role, String message) async {
     if (_scanId == null) return;
     final user = Supabase.instance.client.auth.currentUser;
@@ -100,6 +126,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
       });
     } catch (_) {}
   }
+
+  // ── Send chat ──────────────────────────────────────────────
 
   Future<void> _sendChatMessage() async {
     final text = _chatController.text.trim();
@@ -122,6 +150,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         omLevel: widget.predictResult['om_level'] ?? '',
         cropName: widget.cropName,
         amendments: amendments,
+        farmerName: _farmerName,
         conversationHistory: _chatHistory
             .sublist(0, _chatHistory.length - 1)
             .map((m) => {'role': m['role']!, 'content': m['content']!})
@@ -155,6 +184,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
   }
 
+  // ── Recommend ──────────────────────────────────────────────
+
   Future<void> _runRecommend() async {
     setState(() => _isLoadingRecommend = true);
     try {
@@ -177,6 +208,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
+  // ── Explain ────────────────────────────────────────────────
+
   Future<void> _runExplain(Map<String, dynamic> recommendResult) async {
     setState(() => _isLoadingExplain = true);
     try {
@@ -186,6 +219,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         omLevel: widget.predictResult['om_level'],
         cropName: widget.cropName,
         issues: issues,
+        farmerName: _farmerName,  
       );
       setState(() => _explainResult = result);
       await _saveToSupabase(recommendResult, result);
@@ -199,6 +233,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
       setState(() => _isLoadingExplain = false);
     }
   }
+
+  // ── Save to Supabase ───────────────────────────────────────
 
   Future<void> _saveToSupabase(
     Map<String, dynamic> recommend,
@@ -242,6 +278,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
       MaterialPageRoute(builder: (_) => const ScanSavedScreen()),
     );
   }
+
+  // ── Build ──────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -427,7 +465,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
               SizedBox(height: h * 0.01),
 
-              // ── Chat input — expands vertically ────────────
+              // ── Chat input — expands vertically ───────────
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
