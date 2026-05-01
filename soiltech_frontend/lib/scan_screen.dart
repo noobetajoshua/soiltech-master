@@ -16,13 +16,11 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  // ── Constants ──────────────────────────────────────────────
   static const bgColor = Color(0xFFF1EFEA);
   static const darkGreen = Color.fromARGB(255, 114, 168, 127);
   static const borderColor = Color(0xFF7D9C74);
   static const textDark = Color(0xFF0A2418);
 
-  // ── Emoji map ──────────────────────────────────────────────
   static const Map<String, String> _cropEmojis = {
     'rice': '🌾',
     'corn': '🌽',
@@ -36,32 +34,23 @@ class _ScanScreenState extends State<ScanScreen> {
 
   String _getEmoji(String crop) => _cropEmojis[crop] ?? '🌱';
 
-  // ── Step controller ────────────────────────────────────────
   final PageController _pageController = PageController();
   int _currentStep = 0;
   static const int _totalSteps = 5;
 
-  // ── Step 1 — Crop ──────────────────────────────────────────
   List<String> _crops = [];
   String? _selectedCrop;
   bool _isLoadingCrops = true;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
 
-  // ── Step 2 — Soil condition ────────────────────────────────
   int _wetDryScore = 0;
-
-  // ── Step 3 — Drainage ─────────────────────────────────────
   int _drainageScore = 0;
 
-  // ── Step 4 — Photo ─────────────────────────────────────────
   File? _selectedImage;
   bool _isScanning = false;
 
-  // ── Step 5 — Scan result preview ──────────────────────────
   Map<String, dynamic>? _predictResult;
-
-  // ── Lifecycle ──────────────────────────────────────────────
 
   @override
   void initState() {
@@ -105,23 +94,20 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  // ── Groq crop search ───────────────────────────────────────
+  // ── Crop search ────────────────────────────────────────────
 
   Future<void> _searchCrop(String input) async {
     if (input.trim().isEmpty) return;
     setState(() => _isSearching = true);
-
     try {
       final response = await http.post(
         Uri.parse('http://10.0.2.2:5000/normalize-crop'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'crop_name': input.trim()}),
       );
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final matched = data['crop'] as String?;
-
         if (matched != null && _crops.contains(matched)) {
           setState(() => _selectedCrop = matched);
           if (mounted) {
@@ -174,29 +160,23 @@ class _ScanScreenState extends State<ScanScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
+    } else {
+      Navigator.maybePop(context);
     }
   }
-
-  // ── Photo picker ───────────────────────────────────────────
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source);
-    if (picked != null) {
-      setState(() => _selectedImage = File(picked.path));
-    }
+    if (picked != null) setState(() => _selectedImage = File(picked.path));
   }
-
-  // ── Run scan → go to Step 5 ────────────────────────────────
 
   Future<void> _runScan() async {
     if (_selectedImage == null || _selectedCrop == null) return;
     setState(() => _isScanning = true);
-
     try {
       final result = await SoilApi.predict(_selectedImage!, _wetDryScore);
       setState(() => _predictResult = result);
-
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -212,10 +192,6 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  // ── Continue to ResultsScreen ──────────────────────────────
-  // KEY FIX: use push (not pushReplacement) so the back arrow
-  // on ResultsScreen returns here to Step 5, not past ScanScreen.
-
   Future<void> _goToResults() async {
     await Navigator.push(
       context,
@@ -228,91 +204,65 @@ class _ScanScreenState extends State<ScanScreen> {
         ),
       ),
     );
-    // Farmer pressed back from ResultsScreen — they land back on
-    // Step 5. No action needed; state is preserved.
+    // Back from ResultsScreen lands here on Step 5 — no action needed.
   }
 
   // ══════════════════════════════════════════════════════════════
-  // SHARED WIDGETS
+  // NAV BAR — same position for ALL 5 steps
   // ══════════════════════════════════════════════════════════════
-
-  Widget _buildProgressBar(double w) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: w * 0.05),
-      child: Row(
-        children: List.generate(_totalSteps, (i) {
-          return Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              height: 5,
-              decoration: BoxDecoration(
-                color: i <= _currentStep ? darkGreen : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildStepLabel(double w) {
-    const labels = [
-      'Step 1 of 5 — Choose Your Crop',
-      'Step 2 of 5 — Soil Condition',
-      'Step 3 of 5 — Drainage',
-      'Step 4 of 5 — Take a Photo',
-      'Step 5 of 5 — Scan Result',
-    ];
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: 8),
-      child: Text(
-        labels[_currentStep],
-        style: TextStyle(
-          fontSize: w * 0.035,
-          color: Colors.grey.shade600,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
 
   Widget _buildNavButtons(double w, double h) {
-    // Step 5 renders its own Back + Continue row — no nav bar here
-    if (_currentStep == 4) return const SizedBox.shrink();
-
+    final isStep5 = _currentStep == 4;
     final isStep4 = _currentStep == 3;
-    final canProceed = _currentStep == 0
+
+    // Right button label / action
+    final bool canProceed = _currentStep == 0
         ? _selectedCrop != null
-        : _currentStep == 3
+        : isStep4
         ? _selectedImage != null
+        : isStep5
+        ? _predictResult != null
         : true;
+
+    final String rightLabel = isStep5
+        ? 'Continue →'
+        : isStep4
+        ? 'Scan Soil →'
+        : 'Next →';
+
+    final VoidCallback? rightAction = canProceed
+        ? isStep5
+              ? _goToResults
+              : isStep4
+              ? _runScan
+              : _nextStep
+        : null;
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: h * 0.02),
       child: Row(
         children: [
-          if (_currentStep > 0) ...[
-            Expanded(
-              flex: 1,
-              child: OutlinedButton(
-                onPressed: _prevStep,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: borderColor),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: EdgeInsets.symmetric(vertical: h * 0.018),
+          // ← Back — always shown
+          Expanded(
+            flex: 1,
+            child: OutlinedButton(
+              onPressed: _prevStep,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: borderColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('← Back', style: TextStyle(color: darkGreen)),
+                padding: EdgeInsets.symmetric(vertical: h * 0.018),
               ),
+              child: const Text('← Back', style: TextStyle(color: darkGreen)),
             ),
-            SizedBox(width: w * 0.03),
-          ],
+          ),
+          SizedBox(width: w * 0.03),
+          // Next / Scan Soil / Continue
           Expanded(
             flex: 2,
             child: ElevatedButton(
-              onPressed: canProceed ? (isStep4 ? _runScan : _nextStep) : null,
+              onPressed: rightAction,
               style: ElevatedButton.styleFrom(
                 backgroundColor: canProceed ? darkGreen : Colors.grey.shade300,
                 shape: RoundedRectangleBorder(
@@ -331,7 +281,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       ),
                     )
                   : Text(
-                      isStep4 ? 'Scan Soil →' : 'Next →',
+                      rightLabel,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -343,6 +293,10 @@ class _ScanScreenState extends State<ScanScreen> {
       ),
     );
   }
+
+  // ══════════════════════════════════════════════════════════════
+  // SHARED OPTION CARD
+  // ══════════════════════════════════════════════════════════════
 
   Widget _buildOptionCard({
     required double w,
@@ -815,6 +769,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   // ══════════════════════════════════════════════════════════════
   // STEP 5 — SCAN RESULT PREVIEW
+  // Buttons are NOT here — they live in _buildNavButtons below
   // ══════════════════════════════════════════════════════════════
 
   Widget _buildScanResultStep(double w, double h) {
@@ -846,8 +801,6 @@ class _ScanScreenState extends State<ScanScreen> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(height: h * 0.01),
-
-          // ── Checkmark ──────────────────────────────────
           Container(
             width: w * 0.18,
             height: w * 0.18,
@@ -857,9 +810,7 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
             child: const Icon(Icons.check, color: Colors.white, size: 40),
           ),
-
           SizedBox(height: h * 0.02),
-
           Text(
             'Soil Scan Complete',
             style: TextStyle(
@@ -873,10 +824,7 @@ class _ScanScreenState extends State<ScanScreen> {
             "Here's what we found in your sample.",
             style: TextStyle(fontSize: w * 0.035, color: Colors.grey.shade500),
           ),
-
           SizedBox(height: h * 0.025),
-
-          // ── Scanned photo ───────────────────────────────
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: Image.file(
@@ -886,10 +834,7 @@ class _ScanScreenState extends State<ScanScreen> {
               fit: BoxFit.cover,
             ),
           ),
-
           SizedBox(height: h * 0.025),
-
-          // ── Result chips ────────────────────────────────
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(w * 0.05),
@@ -920,56 +865,7 @@ class _ScanScreenState extends State<ScanScreen> {
               ],
             ),
           ),
-
-          SizedBox(height: h * 0.035),
-
-          // ── Back + Continue ────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                flex: 1,
-                child: OutlinedButton(
-                  onPressed: _prevStep,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: borderColor),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: h * 0.02),
-                  ),
-                  child: const Text(
-                    '← Back',
-                    style: TextStyle(color: darkGreen),
-                  ),
-                ),
-              ),
-              SizedBox(width: w * 0.03),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _goToResults,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: darkGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: h * 0.02),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Continue →',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: h * 0.03),
+          SizedBox(height: h * 0.02),
         ],
       ),
     );
@@ -1052,8 +948,50 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ),
             const Divider(height: 1),
+            // ← Single nav bar, same vertical position for all 5 steps
             _buildNavButtons(w, h),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar(double w) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: w * 0.05),
+      child: Row(
+        children: List.generate(_totalSteps, (i) {
+          return Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              height: 5,
+              decoration: BoxDecoration(
+                color: i <= _currentStep ? darkGreen : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildStepLabel(double w) {
+    const labels = [
+      'Step 1 of 5 — Choose Your Crop',
+      'Step 2 of 5 — Soil Condition',
+      'Step 3 of 5 — Drainage',
+      'Step 4 of 5 — Take a Photo',
+      'Step 5 of 5 — Scan Result',
+    ];
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: 8),
+      child: Text(
+        labels[_currentStep],
+        style: TextStyle(
+          fontSize: w * 0.035,
+          color: Colors.grey.shade600,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
