@@ -197,9 +197,38 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
   }
 
+  // ── Upload image to Supabase Storage ───────────────────────
+  // Only called inside _saveScan() — never triggered automatically.
+  // Returns public URL on success, null on failure (scan still saves).
+
+  Future<String?> _uploadImage(File imageFile, String userId) async {
+    try {
+      final fileName =
+          'soil_scans/$userId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      await Supabase.instance.client.storage
+          .from('scan-images') // adjust bucket name if different
+          .upload(
+            fileName,
+            imageFile,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: false,
+            ),
+          );
+
+      return Supabase.instance.client.storage
+          .from('scan-images')
+          .getPublicUrl(fileName);
+    } catch (_) {
+      // Upload failed — scan saves without photo rather than blocking the farmer.
+      return null;
+    }
+  }
+
   // ── Save scan ───────────────────────────────────────────────
-  // Saves the scan row, bulk-inserts all in-memory chat messages,
-  // then navigates to ScanSavedScreen.
+  // ONLY called when farmer explicitly taps "Save Scan".
+  // Steps: upload image → insert scan row → bulk-insert chat → navigate.
 
   Future<void> _saveScan() async {
     if (_recommendResult == null || _explainResult == null) return;
@@ -209,7 +238,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
-      // 1. Insert scan row
+      // 1. Upload image → get public URL (null if upload fails)
+      String? imageUrl;
+      if (widget.imageFile != null) {
+        imageUrl = await _uploadImage(widget.imageFile!, user.id);
+      }
+
+      // 2. Insert scan row — includes image_url
       final inserted = await Supabase.instance.client
           .from('scan_history')
           .insert({
@@ -222,13 +257,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
             'issues': _recommendResult!['issues'],
             'amendments': _recommendResult!['amendments'],
             'explanation': _explainResult!['explanation'],
+            'image_url': imageUrl, // null is fine — history shows placeholder
           })
           .select('id')
           .single();
 
       final scanId = inserted['id'] as String;
 
-      // 2. Bulk-insert all in-memory chat messages
+      // 3. Bulk-insert all in-memory chat messages
       if (_chatHistory.isNotEmpty) {
         final messages = _chatHistory
             .map(
@@ -248,7 +284,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _isSaved = true;
       });
 
-      // 3. Navigate to ScanSavedScreen
+      // 4. Navigate to ScanSavedScreen
       if (mounted) {
         Navigator.push(
           context,
@@ -528,10 +564,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
             ],
 
             // ── SAVE SCAN — Back + Save side by side ───────
+            // Only shown before save. After save the farmer is
+            // on ScanSavedScreen so these buttons are irrelevant.
             if (_explainResult != null && !_isSaved) ...[
               Row(
                 children: [
-                  // Back button
                   Expanded(
                     flex: 1,
                     child: OutlinedButton(
@@ -550,7 +587,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     ),
                   ),
                   SizedBox(width: w * 0.03),
-                  // Save Scan button
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(

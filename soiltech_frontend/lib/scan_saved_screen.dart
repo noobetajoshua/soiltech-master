@@ -1,7 +1,8 @@
 // lib/widgets/scan_saved_screen.dart
 
 import 'package:flutter/material.dart';
-import 'history_screen.dart'; // adjust import to your actual path
+import 'history_screen.dart'; // adjust if path differs
+import 'scan_screen.dart'; // adjust if path differs
 
 class ScanSavedScreen extends StatelessWidget {
   const ScanSavedScreen({super.key});
@@ -18,6 +19,7 @@ class ScanSavedScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: bgColor,
+      // No AppBar — no back arrow. Farmer must choose an action.
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: w * 0.08),
@@ -68,9 +70,13 @@ class ScanSavedScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Pop everything back to root, then push HistoryScreen.
-                    // This lands the farmer on History with a clean back stack.
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    // Pop back to ScanScreen (which is just below
+                    // ResultsScreen on the stack), then push HistoryScreen.
+                    // This keeps ScanScreen alive in the back stack so the
+                    // bottom nav still works correctly.
+                    Navigator.of(context).popUntil(
+                      (route) => route.settings.name == '/' || route.isFirst,
+                    );
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const HistoryScreen()),
                     );
@@ -97,14 +103,18 @@ class ScanSavedScreen extends StatelessWidget {
               SizedBox(height: h * 0.015),
 
               // ── Scan Again ─────────────────────────────
+              // Pops all screens back to root (the main shell /
+              // bottom nav), then pushes a brand-new ScanScreen.
+              // This gives the farmer a completely fresh Step 1
+              // with no leftover state from the previous scan.
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () {
-                    // Pop all the way back to Step 1 (ScanScreen).
-                    // ScanScreen is the root of this navigation stack,
-                    // so popUntil(isFirst) drops us right back there.
                     Navigator.of(context).popUntil((route) => route.isFirst);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ScanScreen()),
+                    );
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: borderColor),
