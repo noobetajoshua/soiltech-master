@@ -6,7 +6,7 @@ import 'dart:convert';
 const String baseUrl = 'http://10.0.2.2:5000';
 
 // PRODUCTION — Render
-//const String baseUrl = 'https://your-app.onrender.com';
+//const String baseUrl = 'https://soiltech-main.onrender.com';
 
 // 60 seconds — handles Render cold start wake-up delay
 const Duration _timeout = Duration(seconds: 60);
