@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:soiltech/controllers/profile_photo_controller.dart';
 import 'package:soiltech/controllers/profile_info_controller.dart';
 import 'package:soiltech/login.dart';
-
+import 'package:soiltech/change_password_screen.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -361,9 +361,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                               // ── Change Password row ──
                               GestureDetector(
-                                onTap: () {
-                                  // TODO: Navigator.push to ChangePasswordScreen
-                                },
+                               onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+  );
+},
                                 child: Row(
                                   children: [
                                     Icon(
