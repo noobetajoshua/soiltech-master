@@ -2,7 +2,11 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+// LOCAL — emulator
 const String baseUrl = 'http://10.0.2.2:5000';
+
+// PRODUCTION — Render
+//const String baseUrl = 'https://your-app.onrender.com';
 
 // 60 seconds — handles Render cold start wake-up delay
 const Duration _timeout = Duration(seconds: 60);
