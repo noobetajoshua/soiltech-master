@@ -5,6 +5,7 @@ import 'package:soiltech/controllers/profile_photo_controller.dart';
 import 'package:soiltech/controllers/profile_info_controller.dart';
 import 'package:soiltech/login.dart';
 import 'package:soiltech/change_password_screen.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -73,10 +74,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _usernameController.text = _username;
     _emailController.text = _email;
     setState(() => _isEditMode = true);
-  }
-
-  void _cancelEditMode() {
-    setState(() => _isEditMode = false);
   }
 
   Future<void> _handleSaveProfile() async {
@@ -159,318 +156,317 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final w = MediaQuery.of(context).size.width;
     final h = MediaQuery.of(context).size.height;
 
-    final avatarBoxWidth = w * 0.33;
-    final avatarBoxHeight = h * 0.13;
-    final avatarIconSize = w * 0.18;
-    final headerHeight = h * 0.23;
-    final bannerHeight = headerHeight * 0.79;
-
     return Scaffold(
       backgroundColor: bgColor,
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: darkGreen))
-            : RefreshIndicator(
-                color: darkGreen,
-                onRefresh: _loadProfile,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-                    children: [
-                      // ── Header / Avatar ──────────────────────────────
-                      SizedBox(
-                        height: headerHeight,
-                        width: double.infinity,
-                        child: Stack(
-                          alignment: Alignment.topCenter,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: darkGreen))
+          : GestureDetector(
+              onTap: () {
+                if (showPictureMenu) setState(() => showPictureMenu = false);
+              },
+              child: Stack(
+                children: [
+                  // ── Gradient header ───────────────────────────────
+                  Container(
+                    height: h * 0.32,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [darkGreen, greenColor],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  ),
+
+                  SafeArea(
+                    child: RefreshIndicator(
+                      color: darkGreen,
+                      onRefresh: _loadProfile,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
                           children: [
-                            // Green banner
-                            Container(
-                              height: bannerHeight,
-                              width: double.infinity,
-                              decoration: const BoxDecoration(
-                                color: greenColor,
-                                borderRadius: BorderRadius.only(
-                                  bottomLeft: Radius.elliptical(220, 90),
-                                  bottomRight: Radius.elliptical(220, 90),
-                                ),
+                            // ── Top bar ─────────────────────────────
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: w * 0.04,
+                                vertical: h * 0.02,
                               ),
-                            ),
-
-                            // Avatar card
-                            Positioned(
-                              top: bannerHeight * 0.68,
-                              child: Stack(
-                                clipBehavior: Clip.none,
+                              child: Row(
                                 children: [
-                                  Container(
-                                    width: avatarBoxWidth,
-                                    height: avatarBoxHeight,
-                                    decoration: BoxDecoration(
-                                      color: bgColor,
-                                      borderRadius: BorderRadius.circular(28),
-                                      border: Border.all(
-                                        color: borderColor,
-                                        width: 1.2,
-                                      ),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(27),
-                                      child: _buildProfileImage(avatarIconSize),
+                                  // Back arrow
+                                  GestureDetector(
+                                    onTap: () => Navigator.pop(context),
+                                    child: Icon(
+                                      Icons.arrow_back_ios,
+                                      color: Colors.white,
+                                      size: w * 0.065,
                                     ),
                                   ),
 
-                                  // Logout icon
-                                  Positioned(
-                                    top: -10,
-                                    right: -10,
-                                    child: GestureDetector(
-                                      onTap: _handleSignOut,
-                                      child: Container(
-                                        padding: EdgeInsets.all(w * 0.015),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.85),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: borderColor,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.logout,
-                                          color: Colors.red,
-                                          size: w * 0.05,
-                                        ),
-                                      ),
+                                  const Spacer(),
+
+                                  // Title
+                                  Text(
+                                    'Profile',
+                                    style: TextStyle(
+                                      fontSize: w * 0.06,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
                                     ),
                                   ),
 
-                                  // Camera button
-                                  Positioned(
-                                    bottom: -8,
-                                    right: -8,
-                                    child: GestureDetector(
-                                      onTap: () => setState(
-                                        () =>
-                                            showPictureMenu = !showPictureMenu,
+                                  const Spacer(),
+
+                                  // Logout button
+                                  GestureDetector(
+                                    onTap: _handleSignOut,
+                                    child: Container(
+                                      padding: EdgeInsets.all(w * 0.02),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.25),
+                                        shape: BoxShape.circle,
                                       ),
-                                      child: Container(
-                                        padding: EdgeInsets.all(w * 0.02),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: const LinearGradient(
-                                            colors: [
-                                              Color(0xFF7DB97D),
-                                              Color(0xFFA8EA7A),
-                                            ],
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.camera_alt,
-                                          size: w * 0.05,
-                                          color: Colors.white,
-                                        ),
+                                      child: Icon(
+                                        Icons.logout_rounded,
+                                        color: Colors.white,
+                                        size: w * 0.055,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
 
-                      const SizedBox(height: 6),
+                            SizedBox(height: h * 0.015),
 
-                      // Username display
-                      Text(
-                        _username.isNotEmpty ? _username : '—',
-                        style: TextStyle(
-                          fontSize: w * 0.058,
-                          fontWeight: FontWeight.w800,
-                          color: darkGreen,
-                        ),
-                      ),
-
-                      const SizedBox(height: 4),
-
-                      // Email display
-                      Text(
-                        _email.isNotEmpty ? _email : '—',
-                        style: TextStyle(
-                          fontSize: w * 0.036,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ── Profile Card ─────────────────────────────────
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: w * 0.05),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 20,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFAF8F2),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: borderColor.withOpacity(0.4),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // ── Username field ──
-                              _buildFieldLabel('Username'),
-                              const SizedBox(height: 6),
-                              _isEditMode
-                                  ? _buildTextField(_usernameController)
-                                  : _buildDisplayText(_username),
-
-                              const SizedBox(height: 16),
-
-                              // ── Email field ──
-                              _buildFieldLabel('Email'),
-                              const SizedBox(height: 6),
-                              _isEditMode
-                                  ? _buildTextField(
-                                      _emailController,
-                                      keyboardType: TextInputType.emailAddress,
-                                    )
-                                  : _buildDisplayText(_email),
-
-                              const SizedBox(height: 16),
-
-                              // ── Divider ──
-                              Divider(
-                                color: borderColor.withOpacity(0.3),
-                                thickness: 0.8,
-                              ),
-
-                              const SizedBox(height: 8),
-
-                              // ── Change Password row ──
-                              GestureDetector(
-                               onTap: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-  );
-},
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.lock_outline,
-                                      size: 18,
-                                      color: Colors.red.shade400,
+                            // ── Avatar + camera ─────────────────────
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: w * 0.26,
+                                  height: w * 0.26,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.grey.shade300,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 3,
                                     ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Change Password',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.grey.shade800,
+                                  ),
+                                  child: ClipOval(
+                                    child: _buildProfileImage(w * 0.15),
+                                  ),
+                                ),
+
+                                // Camera button
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: GestureDetector(
+                                    onTap: () => setState(
+                                      () => showPictureMenu = !showPictureMenu,
+                                    ),
+                                    child: Container(
+                                      padding: EdgeInsets.all(w * 0.016),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: darkGreen,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        Icons.camera_alt,
+                                        size: w * 0.038,
+                                        color: Colors.white,
                                       ),
                                     ),
-                                    const Spacer(),
-                                    Icon(
-                                      Icons.chevron_right,
-                                      color: Colors.grey.shade400,
-                                      size: 20,
-                                    ),
-                                  ],
+                                  ),
                                 ),
+
+                                // ── Picture menu below camera icon ───
+                                if (showPictureMenu)
+                                  Positioned(
+                                    top: w * 0.26 + 6,
+                                    right: 0,
+                                    child: GestureDetector(
+                                      onTap:
+                                          () {}, // absorb tap — prevent dismiss
+                                      child: _pictureMenu(w),
+                                    ),
+                                  ),
+                              ],
+                            ),
+
+                            SizedBox(height: h * 0.09),
+
+                            // ── Profile card ────────────────────────
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: w * 0.05,
                               ),
-
-                              const SizedBox(height: 20),
-
-                              // ── Action Button ──
-                              SizedBox(
+                              child: Container(
                                 width: double.infinity,
-                                height: 48,
-                                child: _isEditMode
-                                    ? ElevatedButton(
-                                        onPressed: _isSaving
-                                            ? null
-                                            : _handleSaveProfile,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: darkGreen,
-                                          foregroundColor: Colors.white,
-                                          disabledBackgroundColor: darkGreen
-                                              .withOpacity(0.6),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 20,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFAF8F2),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: borderColor.withOpacity(0.4),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // ── Username ──
+                                    _buildFieldLabel('Username'),
+                                    const SizedBox(height: 6),
+                                    _isEditMode
+                                        ? _buildTextField(_usernameController)
+                                        : _buildDisplayText(_username),
+
+                                    const SizedBox(height: 16),
+
+                                    // ── Email ──
+                                    _buildFieldLabel('Email'),
+                                    const SizedBox(height: 6),
+                                    _isEditMode
+                                        ? _buildTextField(
+                                            _emailController,
+                                            keyboardType:
+                                                TextInputType.emailAddress,
+                                          )
+                                        : _buildDisplayText(_email),
+
+                                    const SizedBox(height: 16),
+
+                                    Divider(
+                                      color: borderColor.withOpacity(0.3),
+                                      thickness: 0.8,
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    // ── Change Password row ──
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const ChangePasswordScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.lock_outline,
+                                            size: 18,
+                                            color: Colors.red.shade400,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'Change Password',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.grey.shade800,
                                             ),
                                           ),
-                                          elevation: 0,
-                                        ),
-                                        child: _isSaving
-                                            ? const SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      color: Colors.white,
-                                                      strokeWidth: 2,
+                                          const Spacer(),
+                                          Icon(
+                                            Icons.chevron_right,
+                                            color: Colors.grey.shade400,
+                                            size: 20,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 20),
+
+                                    // ── Action button ──
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 48,
+                                      child: _isEditMode
+                                          ? ElevatedButton(
+                                              onPressed: _isSaving
+                                                  ? null
+                                                  : _handleSaveProfile,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: darkGreen,
+                                                foregroundColor: Colors.white,
+                                                disabledBackgroundColor:
+                                                    darkGreen.withOpacity(0.6),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                elevation: 0,
+                                              ),
+                                              child: _isSaving
+                                                  ? const SizedBox(
+                                                      width: 20,
+                                                      height: 20,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            color: Colors.white,
+                                                            strokeWidth: 2,
+                                                          ),
+                                                    )
+                                                  : const Text(
+                                                      'Save Profile',
+                                                      style: TextStyle(
+                                                        fontSize: 15,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
                                                     ),
-                                              )
-                                            : const Text(
-                                                'Save Profile',
+                                            )
+                                          : ElevatedButton(
+                                              onPressed: _enterEditMode,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: darkGreen,
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                elevation: 0,
+                                              ),
+                                              child: const Text(
+                                                'Edit Profile',
                                                 style: TextStyle(
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
-                                      )
-                                    : ElevatedButton(
-                                        onPressed: _enterEditMode,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: darkGreen,
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
                                             ),
-                                          ),
-                                          elevation: 0,
-                                        ),
-                                        child: const Text(
-                                          'Edit Profile',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
+                            ),
+
+                            const SizedBox(height: 32),
+                          ],
                         ),
                       ),
-
-                      const SizedBox(height: 32),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-      ),
-
-      // Picture menu overlay
-      floatingActionButton: showPictureMenu
-          ? null
-          : null, // handled in Stack below via body overlay
+            ),
     );
   }
 
@@ -523,7 +519,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: darkGreen, width: 1.5),
+          borderSide: const BorderSide(color: darkGreen, width: 1.5),
         ),
         filled: true,
         fillColor: Colors.white,
@@ -556,53 +552,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _pictureMenu(double w) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          width: w * 0.55,
-          padding: EdgeInsets.all(w * 0.03),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
-            borderRadius: BorderRadius.circular(12),
+          padding: EdgeInsets.symmetric(
+            horizontal: w * 0.035,
+            vertical: w * 0.025,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: _uploadProfilePhoto,
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.camera_alt,
-                      size: 20,
-                      color: Colors.black54,
-                    ),
-                    SizedBox(width: w * 0.02),
-                    const Text(
-                      'Upload Picture',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
-                SizedBox(height: w * 0.03),
+            ],
+          ),
+          child: IntrinsicWidth(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 GestureDetector(
-                  onTap: _removeProfilePhoto,
+                  onTap: _uploadProfilePhoto,
                   child: Row(
-                    children: const [
-                      Icon(Icons.delete, size: 20, color: Colors.redAccent),
-                      SizedBox(width: 8),
-                      Text(
-                        'Remove Picture',
-                        style: TextStyle(fontSize: 14, color: Colors.redAccent),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.camera_alt,
+                        size: 15,
+                        color: Colors.black54,
+                      ),
+                      SizedBox(width: w * 0.018),
+                      const Text(
+                        'Upload Picture',
+                        style: TextStyle(fontSize: 12, color: Colors.black87),
                       ),
                     ],
                   ),
                 ),
+                if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
+                  SizedBox(height: w * 0.02),
+                  GestureDetector(
+                    onTap: _removeProfilePhoto,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.delete, size: 15, color: Colors.redAccent),
+                        SizedBox(width: 8),
+                        Text(
+                          'Remove Picture',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
