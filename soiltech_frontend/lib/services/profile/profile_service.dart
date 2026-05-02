@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 
 /// Profile Service for Managing Farmer Profiles
-/// Handles fetching, uploading, and removing farmer profile images
+/// Handles fetching, uploading, removing farmer profile images, and updating profile
 class ProfileService {
   static final ProfileService _instance = ProfileService._internal();
   factory ProfileService() => _instance;
@@ -45,26 +45,87 @@ class ProfileService {
   }
 
   // ══════════════════════════════════════════════════════════════
+  // UPDATE PROFILE
+  // ══════════════════════════════════════════════════════════════
+
+  /// Updates farmer profile (username, email)
+  /// Checks uniqueness excluding the current user before updating
+  Future<Map<String, dynamic>> updateFarmerProfile({
+    required String username,
+    required String email,
+  }) async {
+    try {
+      final authUserId = _client.auth.currentUser?.id;
+      if (authUserId == null) {
+        return _errorResponse('User not authenticated');
+      }
+
+      // STEP 1: Get current profile for comparison
+      final currentProfile = await _fetchFarmerProfile(authUserId);
+      if (currentProfile == null) {
+        return _errorResponse('Profile not found');
+      }
+
+      // STEP 2: Check username uniqueness (only if changed)
+      if (username != currentProfile['username']) {
+        if (await _isUsernameTaken(username, excludeId: authUserId)) {
+          return _errorResponse('Username is already taken');
+        }
+      }
+
+      // STEP 3: Check email uniqueness (only if changed)
+      if (email != currentProfile['email']) {
+        if (await _isEmailTaken(email, excludeId: authUserId)) {
+          return _errorResponse('Email is already registered');
+        }
+      }
+
+      // STEP 4: Update record
+      final updatedProfile = await _client
+          .from('farmer_profile')
+          .update({
+            'username': username,
+            'email': email,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', authUserId)
+          .select()
+          .maybeSingle();
+
+      if (updatedProfile == null) {
+        return _errorResponse('Failed to update profile');
+      }
+
+      return _successResponse(
+        message: 'Profile updated successfully',
+        data: updatedProfile,
+      );
+    } on PostgrestException catch (e) {
+      if (e.message.contains('duplicate key value')) {
+        if (e.message.contains('username')) {
+          return _errorResponse('Username is already taken');
+        }
+        if (e.message.contains('email')) {
+          return _errorResponse('Email is already registered');
+        }
+      }
+      return _errorResponse('Database error: ${e.message}');
+    } catch (e) {
+      return _errorResponse('Unexpected error: ${e.toString()}');
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
   // UPLOAD PROFILE PHOTO
   // ══════════════════════════════════════════════════════════════
 
   /// Upload profile photo to bucket and update farmer record
-  ///
-  /// Steps:
-  /// 1. Upload file to Supabase bucket
-  /// 2. Get public URL
-  /// 3. Update farmers.photo_url with the URL
-  /// 4. Delete old photo if exists (cleanup)
-  ///
-  /// Returns: true if successful, false otherwise
   Future<bool> uploadProfilePhoto(String authUserId, File imageFile) async {
     try {
-      // Step 1: Generate unique filename
       final fileName =
           '${authUserId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final filePath = 'farmer_profiles/$fileName';
 
-      // Step 2: Upload file to bucket
       final bytes = await imageFile.readAsBytes();
       await _client.storage
           .from(_bucketName)
@@ -74,22 +135,18 @@ class ProfileService {
             fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
           );
 
-      // Step 3: Get public URL of uploaded file
       final publicUrl = _client.storage
           .from(_bucketName)
           .getPublicUrl(filePath);
 
-      // Step 4: Get current profile to check if old image exists
       final currentProfile = await getFarmerProfile();
       final oldImageUrl = currentProfile?['photo_url'];
 
-      // Step 5: Update database with new image URL
       await _client
           .from('farmer_profile')
           .update({'photo_url': publicUrl})
           .eq('id', authUserId);
 
-      // Step 6: Delete old image from bucket (cleanup old file)
       if (oldImageUrl != null && oldImageUrl.isNotEmpty) {
         await _deleteOldProfilePhoto(oldImageUrl);
       }
@@ -113,16 +170,8 @@ class ProfileService {
   // ══════════════════════════════════════════════════════════════
 
   /// Remove profile photo from bucket and clear farmer record
-  ///
-  /// Steps:
-  /// 1. Get current profile to find old image URL
-  /// 2. Delete image from bucket
-  /// 3. Set photo_url to NULL in database
-  ///
-  /// Returns: true if successful, false otherwise
   Future<bool> removeProfilePhoto(String authUserId) async {
     try {
-      // Step 1: Get current profile to find image URL
       final currentProfile = await getFarmerProfile();
       final imageUrl = currentProfile?['photo_url'];
 
@@ -131,10 +180,8 @@ class ProfileService {
         return false;
       }
 
-      // Step 2: Delete image from bucket
       await _deleteOldProfilePhoto(imageUrl);
 
-      // Step 3: Clear photo_url column in database
       await _client
           .from('farmer_profile')
           .update({'photo_url': null})
@@ -160,11 +207,40 @@ class ProfileService {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // HELPER: DELETE OLD PHOTO
+  // HELPER METHODS
   // ══════════════════════════════════════════════════════════════
 
-  /// Delete old profile photo from bucket
-  /// Extracts file path from public URL and deletes it
+  Future<Map<String, dynamic>?> _fetchFarmerProfile(String authUserId) async {
+    return await _client
+        .from('farmer_profile')
+        .select()
+        .eq('id', authUserId)
+        .maybeSingle();
+  }
+
+  Future<bool> _isUsernameTaken(
+    String username, {
+    required String excludeId,
+  }) async {
+    final result = await _client
+        .from('farmer_profile')
+        .select('username')
+        .eq('username', username)
+        .neq('id', excludeId)
+        .maybeSingle();
+    return result != null;
+  }
+
+  Future<bool> _isEmailTaken(String email, {required String excludeId}) async {
+    final result = await _client
+        .from('farmer_profile')
+        .select('email')
+        .eq('email', email)
+        .neq('id', excludeId)
+        .maybeSingle();
+    return result != null;
+  }
+
   Future<void> _deleteOldProfilePhoto(String imageUrl) async {
     try {
       final uri = Uri.parse(imageUrl);
@@ -176,8 +252,18 @@ class ProfileService {
       final filePath = pathSegments.sublist(bucketIndex + 1).join('/');
       await _client.storage.from(_bucketName).remove([filePath]);
     } catch (e) {
-      // Don't throw — cleanup should not break the main flow
       print('Error deleting old photo: ${e.toString()}');
     }
+  }
+
+  Map<String, dynamic> _successResponse({
+    required String message,
+    dynamic data,
+  }) {
+    return {'success': true, 'message': message, 'data': data};
+  }
+
+  Map<String, dynamic> _errorResponse(String message) {
+    return {'success': false, 'message': message};
   }
 }
