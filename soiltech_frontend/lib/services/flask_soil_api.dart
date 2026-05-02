@@ -4,6 +4,9 @@ import 'dart:convert';
 
 const String baseUrl = 'http://10.0.2.2:5000';
 
+// 60 seconds — handles Render cold start wake-up delay
+const Duration _timeout = Duration(seconds: 60);
+
 class SoilApi {
   // ─────────────────────────────────────────────
   // PREDICT
@@ -19,8 +22,8 @@ class SoilApi {
     );
     request.fields['wet_dry_score'] = wetDryScore.toString();
 
-    final response = await request.send();
-    final body = await response.stream.bytesToString();
+    final streamedResponse = await request.send().timeout(_timeout);
+    final body = await streamedResponse.stream.bytesToString();
     return jsonDecode(body);
   }
 
@@ -34,16 +37,18 @@ class SoilApi {
     required String cropName,
   }) async {
     final uri = Uri.parse('$baseUrl/recommend');
-    final response = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'soil_type': soilType,
-        'om_level': omLevel,
-        'drainage_score': drainageScore,
-        'crop_name': cropName,
-      }),
-    );
+    final response = await http
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'soil_type': soilType,
+            'om_level': omLevel,
+            'drainage_score': drainageScore,
+            'crop_name': cropName,
+          }),
+        )
+        .timeout(_timeout);
     return jsonDecode(response.body);
   }
 
@@ -58,17 +63,19 @@ class SoilApi {
     required String farmerName,
   }) async {
     final uri = Uri.parse('$baseUrl/explain');
-    final response = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'soil_type': soilType,
-        'om_level': omLevel,
-        'crop_name': cropName,
-        'issues': issues,
-        'farmer_name': farmerName,
-      }),
-    );
+    final response = await http
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'soil_type': soilType,
+            'om_level': omLevel,
+            'crop_name': cropName,
+            'issues': issues,
+            'farmer_name': farmerName,
+          }),
+        )
+        .timeout(_timeout);
     return jsonDecode(response.body);
   }
 
@@ -85,19 +92,21 @@ class SoilApi {
     required String farmerName,
   }) async {
     final uri = Uri.parse('$baseUrl/chat');
-    final response = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'soil_type': soilType,
-        'om_level': omLevel,
-        'crop_name': cropName,
-        'amendments': amendments,
-        'conversation_history': conversationHistory,
-        'user_message': userMessage,
-        'farmer_name': farmerName,
-      }),
-    );
+    final response = await http
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'soil_type': soilType,
+            'om_level': omLevel,
+            'crop_name': cropName,
+            'amendments': amendments,
+            'conversation_history': conversationHistory,
+            'user_message': userMessage,
+            'farmer_name': farmerName,
+          }),
+        )
+        .timeout(_timeout);
 
     final decoded = jsonDecode(response.body);
     if (decoded['error'] != null) throw Exception(decoded['error']);

@@ -225,9 +225,21 @@ class _ScanScreenState extends State<ScanScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Scan error: $e')));
+        final isTimeout =
+            e.toString().contains('TimeoutException') ||
+            e.toString().contains('Connection refused') ||
+            e.toString().contains('SocketException');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isTimeout
+                  ? 'Connection timed out. The server may be starting up — please wait a moment and try again.'
+                  : 'Scan error: $e',
+            ),
+            backgroundColor: isTimeout ? Colors.orange.shade700 : Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     } finally {
       setState(() => _isScanning = false);
