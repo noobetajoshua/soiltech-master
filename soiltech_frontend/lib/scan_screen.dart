@@ -111,7 +111,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _loadCrops() async {
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:5000/crops'));
+      final response = await http.get(Uri.parse('$baseUrl/crops'));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
@@ -120,6 +120,7 @@ class _ScanScreenState extends State<ScanScreen> {
         });
       }
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _crops = [
           'rice',
@@ -143,7 +144,7 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() => _isSearching = true);
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:5000/normalize-crop'),
+        Uri.parse('$baseUrl/normalize-crop'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'crop_name': input.trim()}),
       );
