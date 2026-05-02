@@ -7,12 +7,13 @@ import 'history_screen.dart';
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
 
-  static const Color bgColor = Color(0xFFF5F8D6);
+  static const Color bgColor = Colors.white;
   static const Color primaryGreen = Color(0xFFC1D95C);
   static const Color secondaryGreen = Color(0xFF80B155);
   static const Color darkGreen = Color(0xFF2F5E1A);
   static const Color brown = Color(0xFF9A6B36);
   static const Color cream = Color(0xFFF8F3D9);
+  static const Color textDark = Color(0xFF0A2418);
 
   @override
   Widget build(BuildContext context) {
@@ -21,142 +22,33 @@ class MenuScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: darkGreen),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-            );
-          },
-        ),
-        actions: [
-          Padding(
-            padding: EdgeInsets.only(right: w * 0.03),
-            child: IconButton(
-              icon: Icon(Icons.person, size: w * 0.07, color: darkGreen),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+      body: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: h * 0.13),
+          child: Column(
+            children: [
+              _HeroSection(w: w, h: h),
 
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: w * 0.05),
-          child: Container(
-            padding: EdgeInsets.all(w * 0.05),
-            decoration: BoxDecoration(
-              color: darkGreen,
-              borderRadius: BorderRadius.circular(26),
-              boxShadow: [
-                BoxShadow(
-                  color: darkGreen.withOpacity(0.18),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(w * 0.025),
-                      decoration: BoxDecoration(
-                        color: primaryGreen,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        Icons.document_scanner,
-                        color: darkGreen,
-                        size: w * 0.065,
-                      ),
-                    ),
-                    SizedBox(width: w * 0.03),
-                    Text(
-                      'Start Soil Scan',
-                      style: TextStyle(
-                        fontSize: w * 0.052,
-                        fontWeight: FontWeight.w800,
-                        color: cream,
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: h * 0.014),
-
-                Text(
-                  'Take a photo of your soil to identify soil type, organic matter, and get field recommendations.',
-                  style: TextStyle(
-                    fontSize: w * 0.034,
-                    height: 1.35,
-                    color: cream.withOpacity(0.82),
+              Transform.translate(
+                offset: Offset(0, -h * 0.065),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: w * 0.045),
+                  child: Column(
+                    children: [
+                      _ScanCard(w: w, h: h),
+                      SizedBox(height: h * 0.024),
+                      _InsightsSection(w: w, h: h),
+                      SizedBox(height: h * 0.024),
+                      _RecentScansCard(w: w, h: h),
+                    ],
                   ),
                 ),
-
-                SizedBox(height: h * 0.024),
-
-                Wrap(
-                  spacing: w * 0.02,
-                  runSpacing: h * 0.01,
-                  children: [
-                    _tag(Icons.layers, 'Soil Type', w),
-                    _tag(Icons.grass, 'Organic Matter', w),
-                    _tag(Icons.water_drop, 'Drainage', w),
-                  ],
-                ),
-
-                SizedBox(height: h * 0.026),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryGreen,
-                      foregroundColor: darkGreen,
-                      elevation: 0,
-                      padding: EdgeInsets.symmetric(vertical: h * 0.018),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(32),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ScanScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'Scan Now',
-                      style: TextStyle(
-                        fontSize: w * 0.042,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-
       bottomNavigationBar: SoilTechBottomNav(
         selectedIndex: 0,
         onHomeTap: () {},
@@ -175,30 +67,564 @@ class MenuScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _tag(IconData icon, String label, double w) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: w * 0.027,
-        vertical: w * 0.017,
+class _HeroSection extends StatelessWidget {
+  final double w;
+  final double h;
+
+  const _HeroSection({
+    required this.w,
+    required this.h,
+  });
+
+  static const Color darkGreen = Color(0xFF2F5E1A);
+  static const Color cream = Color(0xFFF8F3D9);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: h * 0.43,
+      width: double.infinity,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/logo/bg_menu.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+          ),
+
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    cream.withOpacity(0.12),
+                    Colors.transparent,
+                    darkGreen.withOpacity(0.10),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          Positioned(
+            top: h * 0.025,
+            left: w * 0.045,
+            child: IconButton(
+              icon: Icon(
+                Icons.menu_rounded,
+                color: darkGreen,
+                size: w * 0.08,
+              ),
+              onPressed: () {},
+            ),
+          ),
+
+          Positioned(
+            top: h * 0.027,
+            right: w * 0.05,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: w * 0.115,
+                height: w * 0.115,
+                decoration: BoxDecoration(
+                  color: cream.withOpacity(0.95),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: darkGreen.withOpacity(0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: darkGreen,
+                  size: w * 0.07,
+                ),
+              ),
+            ),
+          ),
+
+          Positioned(
+            left: w * 0.075,
+            top: h * 0.12,
+            right: w * 0.08,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Better Soil,\nBetter Harvest.',
+                  style: TextStyle(
+                    fontSize: w * 0.087,
+                    height: 1.05,
+                    fontWeight: FontWeight.w900,
+                    color: darkGreen,
+                    letterSpacing: -0.7,
+                    shadows: [
+                      Shadow(
+                        color: Colors.white.withOpacity(0.55),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: h * 0.014),
+                Text(
+                  'Start scanning and take\nthe first step today.',
+                  style: TextStyle(
+                    fontSize: w * 0.04,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                    color: darkGreen.withOpacity(0.82),
+                    shadows: [
+                      Shadow(
+                        color: Colors.white.withOpacity(0.55),
+                        blurRadius: 6,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _ScanCard extends StatelessWidget {
+  final double w;
+  final double h;
+
+  const _ScanCard({
+    required this.w,
+    required this.h,
+  });
+
+  static const Color primaryGreen = Color(0xFFC1D95C);
+  static const Color secondaryGreen = Color(0xFF80B155);
+  static const Color darkGreen = Color(0xFF2F5E1A);
+  static const Color cream = Color(0xFFF8F3D9);
+  static const Color textDark = Color(0xFF0A2418);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.052),
       decoration: BoxDecoration(
-        color: cream.withOpacity(0.10),
+        color: cream.withOpacity(0.97),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cream.withOpacity(0.18)),
+        border: Border.all(color: Colors.white.withOpacity(0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withOpacity(0.16),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: w * 0.038, color: primaryGreen),
-          SizedBox(width: w * 0.012),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Start Soil Scan',
+                  style: TextStyle(
+                    fontSize: w * 0.058,
+                    fontWeight: FontWeight.w900,
+                    color: darkGreen,
+                  ),
+                ),
+                SizedBox(height: h * 0.01),
+                Text(
+                  'Take a photo of your soil\nand get smart insights.',
+                  style: TextStyle(
+                    fontSize: w * 0.038,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    color: textDark.withOpacity(0.72),
+                  ),
+                ),
+                SizedBox(height: h * 0.022),
+                SizedBox(
+                  height: h * 0.055,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryGreen,
+                      foregroundColor: darkGreen,
+                      elevation: 0,
+                      padding: EdgeInsets.symmetric(horizontal: w * 0.07),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ScanScreen(),
+                        ),
+                      );
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Scan Now',
+                          style: TextStyle(
+                            fontSize: w * 0.043,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(width: w * 0.025),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: w * 0.06,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(width: w * 0.025),
+
+          Container(
+            width: w * 0.22,
+            height: w * 0.22,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFC1D95C),
+                  Color(0xFF80B155),
+                  Color(0xFF2F5E1A),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: darkGreen.withOpacity(0.22),
+                  blurRadius: 14,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Container(
+                width: w * 0.165,
+                height: w * 0.165,
+                decoration: BoxDecoration(
+                  color: darkGreen.withOpacity(0.92),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.camera_alt_rounded,
+                  color: cream,
+                  size: w * 0.09,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightsSection extends StatelessWidget {
+  final double w;
+  final double h;
+
+  const _InsightsSection({
+    required this.w,
+    required this.h,
+  });
+
+  static const Color primaryGreen = Color(0xFFC1D95C);
+  static const Color darkGreen = Color(0xFF2F5E1A);
+  static const Color textDark = Color(0xFF0A2418);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'We get insights',
+          style: TextStyle(
+            fontSize: w * 0.049,
+            fontWeight: FontWeight.w900,
+            color: darkGreen,
+          ),
+        ),
+        SizedBox(height: h * 0.018),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _InsightItem(
+              w: w,
+              icon: Icons.science_rounded,
+              label: 'Analyze\nSoil',
+            ),
+            _VerticalDivider(h: h),
+            _InsightItem(
+              w: w,
+              icon: Icons.compost_rounded,
+              label: 'Soil\nAmendments',
+            ),
+            _VerticalDivider(h: h),
+            _InsightItem(
+              w: w,
+              icon: Icons.eco_rounded,
+              label: 'Perfect\nCrop',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _InsightItem extends StatelessWidget {
+  final double w;
+  final IconData icon;
+  final String label;
+
+  const _InsightItem({
+    required this.w,
+    required this.icon,
+    required this.label,
+  });
+
+  static const Color primaryGreen = Color(0xFFC1D95C);
+  static const Color darkGreen = Color(0xFF2F5E1A);
+  static const Color textDark = Color(0xFF0A2418);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: w * 0.22,
+      child: Column(
+        children: [
+          Container(
+            width: w * 0.15,
+            height: w * 0.15,
+            decoration: BoxDecoration(
+              color: primaryGreen.withOpacity(0.26),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: primaryGreen.withOpacity(0.55),
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: darkGreen,
+              size: w * 0.075,
+            ),
+          ),
+          SizedBox(height: w * 0.022),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: w * 0.029,
-              fontWeight: FontWeight.w500,
-              color: cream.withOpacity(0.82),
+              fontSize: w * 0.031,
+              height: 1.18,
+              fontWeight: FontWeight.w700,
+              color: textDark.withOpacity(0.82),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerticalDivider extends StatelessWidget {
+  final double h;
+
+  const _VerticalDivider({
+    required this.h,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: h * 0.07,
+      color: const Color(0xFF80B155).withOpacity(0.18),
+    );
+  }
+}
+
+class _RecentScansCard extends StatelessWidget {
+  final double w;
+  final double h;
+
+  const _RecentScansCard({
+    required this.w,
+    required this.h,
+  });
+
+  static const Color primaryGreen = Color(0xFFC1D95C);
+  static const Color secondaryGreen = Color(0xFF80B155);
+  static const Color darkGreen = Color(0xFF2F5E1A);
+  static const Color brown = Color(0xFF9A6B36);
+  static const Color cream = Color(0xFFF8F3D9);
+  static const Color textDark = Color(0xFF0A2418);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.045),
+      decoration: BoxDecoration(
+        color: cream.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(
+                'Recent Scans',
+                style: TextStyle(
+                  fontSize: w * 0.05,
+                  fontWeight: FontWeight.w900,
+                  color: darkGreen,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HistoryScreen(),
+                    ),
+                  );
+                },
+                child: Text(
+                  'View all',
+                  style: TextStyle(
+                    fontSize: w * 0.032,
+                    fontWeight: FontWeight.w700,
+                    color: secondaryGreen,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: h * 0.018),
+          Row(
+            children: [
+              Container(
+                width: w * 0.18,
+                height: w * 0.18,
+                decoration: BoxDecoration(
+                  color: brown.withOpacity(0.20),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(
+                  Icons.terrain_rounded,
+                  color: brown,
+                  size: w * 0.09,
+                ),
+              ),
+              SizedBox(width: w * 0.035),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Loamy Soil',
+                      style: TextStyle(
+                        fontSize: w * 0.043,
+                        fontWeight: FontWeight.w900,
+                        color: darkGreen,
+                      ),
+                    ),
+                    SizedBox(height: h * 0.004),
+                    Text(
+                      'High Organic Matter',
+                      style: TextStyle(
+                        fontSize: w * 0.033,
+                        fontWeight: FontWeight.w500,
+                        color: textDark.withOpacity(0.60),
+                      ),
+                    ),
+                    SizedBox(height: h * 0.006),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month_rounded,
+                          size: w * 0.043,
+                          color: secondaryGreen,
+                        ),
+                        SizedBox(width: w * 0.015),
+                        Text(
+                          'May 10, 2025',
+                          style: TextStyle(
+                            fontSize: w * 0.032,
+                            color: textDark.withOpacity(0.55),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: w * 0.04,
+                  vertical: h * 0.008,
+                ),
+                decoration: BoxDecoration(
+                  color: primaryGreen.withOpacity(0.28),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: primaryGreen),
+                ),
+                child: Text(
+                  'High',
+                  style: TextStyle(
+                    fontSize: w * 0.034,
+                    fontWeight: FontWeight.w900,
+                    color: darkGreen,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -220,8 +646,8 @@ class SoilTechBottomNav extends StatelessWidget {
     required this.onHistoryTap,
   });
 
-  static const Color bgColor = Color(0xFFF5F8D6);
   static const Color primaryGreen = Color(0xFFC1D95C);
+  static const Color secondaryGreen = Color(0xFF80B155);
   static const Color darkGreen = Color(0xFF2F5E1A);
   static const Color cream = Color(0xFFF8F3D9);
 
@@ -248,11 +674,11 @@ class SoilTechBottomNav extends StatelessWidget {
               Container(
                 height: h * 0.072,
                 decoration: BoxDecoration(
-                  color: darkGreen,
+                  color: primaryGreen,
                   borderRadius: BorderRadius.circular(34),
                   boxShadow: [
                     BoxShadow(
-                      color: darkGreen.withOpacity(0.22),
+                      color: darkGreen.withOpacity(0.16),
                       blurRadius: 22,
                       offset: const Offset(0, 10),
                     ),
@@ -279,7 +705,6 @@ class SoilTechBottomNav extends StatelessWidget {
                   ],
                 ),
               ),
-
               Positioned(
                 top: 0,
                 left: _activeBubbleLeft(context, selectedIndex),
@@ -290,14 +715,22 @@ class SoilTechBottomNav extends StatelessWidget {
                           ? onScanTap
                           : onHistoryTap,
                   child: Container(
-                    width: h * 0.072,
-                    height: h * 0.072,
+                    width: h * 0.074,
+                    height: h * 0.074,
                     decoration: BoxDecoration(
-                      color: bgColor,
                       shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          cream,
+                          primaryGreen,
+                          secondaryGreen,
+                        ],
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: darkGreen.withOpacity(0.16),
+                          color: darkGreen.withOpacity(0.18),
                           blurRadius: 14,
                           offset: const Offset(0, 7),
                         ),
@@ -305,15 +738,22 @@ class SoilTechBottomNav extends StatelessWidget {
                     ),
                     child: Center(
                       child: Container(
-                        width: h * 0.055,
-                        height: h * 0.055,
+                        width: h * 0.056,
+                        height: h * 0.056,
                         decoration: const BoxDecoration(
-                          color: darkGreen,
                           shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              secondaryGreen,
+                              darkGreen,
+                            ],
+                          ),
                         ),
                         child: Icon(
                           _selectedIcon(selectedIndex),
-                          color: primaryGreen,
+                          color: cream,
                           size: w * 0.066,
                         ),
                       ),
@@ -334,7 +774,7 @@ class SoilTechBottomNav extends StatelessWidget {
 
     final horizontalPadding = screenWidth * 0.075;
     final navWidth = screenWidth - (horizontalPadding * 2);
-    final bubbleSize = h * 0.072;
+    final bubbleSize = h * 0.074;
 
     final itemWidth = navWidth / 3;
     final centerX = itemWidth * index + itemWidth / 2;
@@ -365,8 +805,7 @@ class _NavItem extends StatelessWidget {
     required this.onTap,
   });
 
-  static const Color primaryGreen = Color(0xFFC1D95C);
-  static const Color cream = Color(0xFFF8F3D9);
+  static const Color darkGreen = Color(0xFF2F5E1A);
 
   @override
   Widget build(BuildContext context) {
@@ -378,7 +817,7 @@ class _NavItem extends StatelessWidget {
         icon: Icon(
           icon,
           size: w * 0.075,
-          color: isSelected ? Colors.transparent : cream,
+          color: isSelected ? Colors.transparent : darkGreen,
         ),
       ),
     );
