@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'profile.dart';
 import 'scan_screen.dart';
-import 'login.dart';
 import 'history_screen.dart';
 
 class MenuScreen extends StatelessWidget {
