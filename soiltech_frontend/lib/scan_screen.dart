@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:soiltech/services/flask_soil_api.dart';
+import 'package:soiltech/snackbar/snackmessage.dart';
 import 'results_screen.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -81,7 +82,9 @@ class _ScanScreenState extends State<ScanScreen> {
   static const int _totalSteps = 5;
 
   List<String> _crops = [];
-  String? _selectedCrop;
+  String? _selectedCrop; // backend key: "rice", "eggplant", etc.
+  String?
+  _displayCropName; // what farmer typed or tapped: "humay", "talong", "rice"
   bool _isLoadingCrops = true;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -144,7 +147,7 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() => _isSearching = true);
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/normalize-crop'),
+        Uri.parse('$baseUrl/normalize-crop'), 
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'crop_name': input.trim()}),
       );
@@ -152,34 +155,33 @@ class _ScanScreenState extends State<ScanScreen> {
         final data = json.decode(response.body);
         final matched = data['crop'] as String?;
         if (matched != null && _crops.contains(matched)) {
-          setState(() => _selectedCrop = matched);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Matched: ${matched[0].toUpperCase()}${matched.substring(1)}',
-                ),
-                backgroundColor: darkGreen,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+          // Use corrected display name from backend
+          final display = (data['display'] as String?) ?? input.trim();
+          setState(() {
+            _selectedCrop = matched;
+            _displayCropName = display; // corrected spelling from AI
+            _crops.remove(matched);
+            _crops.insert(0, matched); // float to top
+          });
+          // No message — green card at top is enough feedback
         } else {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No matching crop found. Try another name.'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showTopMessage(context, 'Crop not available', success: false);
           }
+        }
+      } else {
+        // 404 — no match found
+        if (mounted) {
+          showTopMessage(context, 'Crop not available', success: false);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        showTopMessage(
           context,
-        ).showSnackBar(SnackBar(content: Text('Search error: $e')));
+          'Search error. Check connection.',
+          success: false,
+        );
       }
     } finally {
       setState(() => _isSearching = false);
@@ -230,16 +232,13 @@ class _ScanScreenState extends State<ScanScreen> {
             e.toString().contains('TimeoutException') ||
             e.toString().contains('Connection refused') ||
             e.toString().contains('SocketException');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isTimeout
-                  ? 'Connection timed out. The server may be starting up — please wait a moment and try again.'
-                  : 'Scan error: $e',
-            ),
-            backgroundColor: isTimeout ? Colors.orange.shade700 : Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
+        showTopMessage(
+          context,
+          isTimeout
+              ? 'Connection timed out. Try again.'
+              : 'Scan failed. Try again.',
+          success: false,
+          duration: const Duration(seconds: 4),
         );
       }
     } finally {
@@ -259,18 +258,16 @@ class _ScanScreenState extends State<ScanScreen> {
         ),
       ),
     );
-    // Back from ResultsScreen lands here on Step 5 — no action needed.
   }
 
   // ══════════════════════════════════════════════════════════════
-  // NAV BAR — same position for ALL 5 steps
+  // NAV BAR
   // ══════════════════════════════════════════════════════════════
 
   Widget _buildNavButtons(double w, double h) {
     final isStep5 = _currentStep == 4;
     final isStep4 = _currentStep == 3;
 
-    // Right button label / action
     final bool canProceed = _currentStep == 0
         ? _selectedCrop != null
         : isStep4
@@ -297,7 +294,6 @@ class _ScanScreenState extends State<ScanScreen> {
       padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: h * 0.02),
       child: Row(
         children: [
-          // ← Back — always shown
           Expanded(
             flex: 1,
             child: OutlinedButton(
@@ -313,7 +309,6 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
           SizedBox(width: w * 0.03),
-          // Next / Scan Soil / Continue
           Expanded(
             flex: 2,
             child: ElevatedButton(
@@ -444,7 +439,7 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
               SizedBox(height: h * 0.005),
               Text(
-                'Tap a crop or search in Tagalog or English.',
+                'Tap a crop or search in Bisaya, Tagalog, or English.',
                 style: TextStyle(
                   fontSize: w * 0.035,
                   color: Colors.grey.shade600,
@@ -457,7 +452,7 @@ class _ScanScreenState extends State<ScanScreen> {
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'e.g. palay, mais, kamote...',
+                        hintText: 'e.g. palay, mais, talong, batong...',
                         hintStyle: TextStyle(color: Colors.grey.shade400),
                         prefixIcon: const Icon(Icons.search, color: darkGreen),
                         border: OutlineInputBorder(
@@ -531,8 +526,20 @@ class _ScanScreenState extends State<ScanScreen> {
                     itemBuilder: (context, index) {
                       final crop = _crops[index];
                       final selected = _selectedCrop == crop;
+
+                      // Display name: if this is the selected crop and farmer
+                      // typed something, show what they typed. Otherwise show key.
+                      final label = (selected && _displayCropName != null)
+                          ? _displayCropName!
+                          : crop[0].toUpperCase() + crop.substring(1);
+
                       return GestureDetector(
-                        onTap: () => setState(() => _selectedCrop = crop),
+                        onTap: () => setState(() {
+                          _selectedCrop = crop;
+                          // Tapping card directly → show the English key
+                          _displayCropName =
+                              crop[0].toUpperCase() + crop.substring(1);
+                        }),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           decoration: BoxDecoration(
@@ -561,12 +568,14 @@ class _ScanScreenState extends State<ScanScreen> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                crop[0].toUpperCase() + crop.substring(1),
+                                label,
                                 style: TextStyle(
                                   fontSize: w * 0.038,
                                   fontWeight: FontWeight.w600,
                                   color: selected ? Colors.white : textDark,
                                 ),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
@@ -824,7 +833,6 @@ class _ScanScreenState extends State<ScanScreen> {
 
   // ══════════════════════════════════════════════════════════════
   // STEP 5 — SCAN RESULT PREVIEW
-  // Buttons are NOT here — they live in _buildNavButtons below
   // ══════════════════════════════════════════════════════════════
 
   Widget _buildScanResultStep(double w, double h) {
@@ -1003,7 +1011,6 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ),
             const Divider(height: 1),
-            // ← Single nav bar, same vertical position for all 5 steps
             _buildNavButtons(w, h),
           ],
         ),
