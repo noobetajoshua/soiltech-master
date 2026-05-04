@@ -1,16 +1,24 @@
+// lib/widgets/results_screen.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'services/flask_soil_api.dart';
+import 'package:soiltech/services/flask_soil_api.dart';
+import 'package:soiltech/services/profile/profile_service.dart';
+import 'scan_saved_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
   final Map<String, dynamic> predictResult;
-  final File imageFile;
+  final File? imageFile;
+  final String cropName;
+  final int drainageScore;
 
   const ResultsScreen({
     super.key,
     required this.predictResult,
-    required this.imageFile,
+    this.imageFile,
+    required this.cropName,
+    required this.drainageScore,
   });
 
   @override
@@ -18,94 +26,283 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
-  int _drainageScore = 0;
-  bool _drainageSubmitted = false;
-
-  final TextEditingController _cropController = TextEditingController();
-  bool _cropSubmitted = false;
+  static const bgColor = Color(0xFFF1EFEA);
+  static const darkGreen = Color.fromARGB(255, 114, 168, 127);
+  static const borderColor = Color(0xFF7D9C74);
+  static const textDark = Color(0xFF0A2418);
 
   Map<String, dynamic>? _recommendResult;
   Map<String, dynamic>? _explainResult;
 
   bool _isLoadingRecommend = false;
   bool _isLoadingExplain = false;
+  bool _isSaving = false;
   bool _isSaved = false;
 
+  String? _scanId;
+  String _farmerName = 'Kuya';
+
+  final List<Map<String, String>> _chatHistory = [];
+  final TextEditingController _chatController = TextEditingController();
+  final ScrollController _chatScroll = ScrollController();
+  bool _isLoadingChat = false;
+  bool _chatVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _chatController.dispose();
+    _chatScroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    await _loadFarmerName();
+    _runRecommend();
+  }
+
+  Future<void> _loadFarmerName() async {
+    try {
+      final profile = await ProfileService().getFarmerProfile();
+      if (mounted) setState(() => _farmerName = profile?['username'] ?? 'Kuya');
+    } catch (_) {}
+  }
+
+  // ── Recommend ──────────────────────────────────────────────
+
   Future<void> _runRecommend() async {
-    if (_cropController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Please enter a crop name')));
-      return;
-    }
-
-    setState(() {
-      _isLoadingRecommend = true;
-      _cropSubmitted = true;
-    });
-
+    setState(() => _isLoadingRecommend = true);
     try {
       final result = await SoilApi.recommend(
         soilType: widget.predictResult['soil_type'],
         omLevel: widget.predictResult['om_level'],
-        drainageScore: _drainageScore,
-        cropName: _cropController.text.trim(),
+        drainageScore: widget.drainageScore,
+        cropName: widget.cropName,
       );
-
       setState(() => _recommendResult = result);
       await _runExplain(result);
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Recommend error: $e')));
+      }
     } finally {
       setState(() => _isLoadingRecommend = false);
     }
   }
 
+  // ── Explain ────────────────────────────────────────────────
+
   Future<void> _runExplain(Map<String, dynamic> recommendResult) async {
     setState(() => _isLoadingExplain = true);
-
     try {
       final issues = List<String>.from(recommendResult['issues'] ?? []);
       final result = await SoilApi.explain(
         soilType: widget.predictResult['soil_type'],
         omLevel: widget.predictResult['om_level'],
-        cropName: _cropController.text.trim(),
+        cropName: widget.cropName,
         issues: issues,
+        farmerName: _farmerName,
       );
-      setState(() => _explainResult = result);
-      await _saveToSupabase(recommendResult, result);
+      setState(() {
+        _explainResult = result;
+        _chatVisible = true;
+      });
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Explain error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Explain error: $e')));
+      }
     } finally {
       setState(() => _isLoadingExplain = false);
     }
   }
 
-  Future<void> _saveToSupabase(
-      Map<String, dynamic> recommend, Map<String, dynamic> explain) async {
+  // ── Chat ────────────────────────────────────────────────────
+
+  Future<void> _sendChatMessage() async {
+    final text = _chatController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() {
+      _chatHistory.add({'role': 'user', 'content': text});
+      _chatController.clear();
+      _isLoadingChat = true;
+    });
+    _scrollToBottom();
+
+    if (_isSaved) await _persistChatMessage('user', text);
+
+    try {
+      final amendments = List<String>.from(
+        _recommendResult?['amendments'] ?? [],
+      );
+      final reply = await SoilApi.chat(
+        soilType: widget.predictResult['soil_type'] ?? '',
+        omLevel: widget.predictResult['om_level'] ?? '',
+        cropName: widget.cropName,
+        amendments: amendments,
+        farmerName: _farmerName,
+        conversationHistory: _chatHistory
+            .sublist(0, _chatHistory.length - 1)
+            .map((m) => {'role': m['role']!, 'content': m['content']!})
+            .toList(),
+        userMessage: text,
+      );
+      setState(() => _chatHistory.add({'role': 'assistant', 'content': reply}));
+      if (_isSaved) await _persistChatMessage('assistant', reply);
+    } catch (_) {
+      setState(
+        () => _chatHistory.add({
+          'role': 'assistant',
+          'content': 'Sorry, something went wrong. Please try again.',
+        }),
+      );
+    } finally {
+      setState(() => _isLoadingChat = false);
+      _scrollToBottom();
+    }
+  }
+
+  Future<void> _persistChatMessage(String role, String message) async {
+    if (_scanId == null) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    try {
+      await Supabase.instance.client.from('chat_messages').insert({
+        'scan_id': _scanId!,
+        'user_id': user.id,
+        'role': role,
+        'message': message,
+      });
+    } catch (_) {}
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_chatScroll.hasClients) {
+        _chatScroll.animateTo(
+          _chatScroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  // ── Upload image to Supabase Storage ───────────────────────
+  // Only called inside _saveScan() — never triggered automatically.
+  // Returns public URL on success, null on failure (scan still saves).
+
+  Future<String?> _uploadImage(File imageFile, String userId) async {
+    try {
+      final fileName =
+          'soil_scans/$userId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      await Supabase.instance.client.storage
+          .from('scan-images') // adjust bucket name if different
+          .upload(
+            fileName,
+            imageFile,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: false,
+            ),
+          );
+
+      return Supabase.instance.client.storage
+          .from('scan-images')
+          .getPublicUrl(fileName);
+    } catch (_) {
+      // Upload failed — scan saves without photo rather than blocking the farmer.
+      return null;
+    }
+  }
+
+  // ── Save scan ───────────────────────────────────────────────
+  // ONLY called when farmer explicitly taps "Save Scan".
+  // Steps: upload image → insert scan row → bulk-insert chat → navigate.
+
+  Future<void> _saveScan() async {
+    if (_recommendResult == null || _explainResult == null) return;
+    setState(() => _isSaving = true);
+
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
-      await Supabase.instance.client.from('scan_history').insert({
-        'user_id': user.id,
-        'soil_type': widget.predictResult['soil_type'],
-        'om_level': widget.predictResult['om_level'],
-        'confidence': widget.predictResult['confidence'],
-        'crop_name': _cropController.text.trim(),
-        'compatibility': recommend['compatibility'],
-        'issues': recommend['issues'],
-        'amendments': recommend['amendments'],
-        'explanation': explain['explanation'],
+      // 1. Upload image → get public URL (null if upload fails)
+      String? imageUrl;
+      if (widget.imageFile != null) {
+        imageUrl = await _uploadImage(widget.imageFile!, user.id);
+      }
+
+      // 2. Insert scan row — includes image_url
+      final inserted = await Supabase.instance.client
+          .from('scan_history')
+          .insert({
+            'user_id': user.id,
+            'soil_type': widget.predictResult['soil_type'],
+            'om_level': widget.predictResult['om_level'],
+            'confidence': widget.predictResult['confidence'],
+            'crop_name': widget.cropName,
+            'compatibility': _recommendResult!['compatibility'],
+            'issues': _recommendResult!['issues'],
+            'amendments': _recommendResult!['amendments'],
+            'explanation': _explainResult!['explanation'],
+            'image_url': imageUrl, // null is fine — history shows placeholder
+          })
+          .select('id')
+          .single();
+
+      final scanId = inserted['id'] as String;
+
+      // 3. Bulk-insert all in-memory chat messages
+      if (_chatHistory.isNotEmpty) {
+        final messages = _chatHistory
+            .map(
+              (m) => {
+                'scan_id': scanId,
+                'user_id': user.id,
+                'role': m['role']!,
+                'message': m['content']!,
+              },
+            )
+            .toList();
+        await Supabase.instance.client.from('chat_messages').insert(messages);
+      }
+
+      setState(() {
+        _scanId = scanId;
+        _isSaved = true;
       });
 
-      setState(() => _isSaved = true);
+      // 4. Navigate to ScanSavedScreen
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ScanSavedScreen()),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Save error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Save error: $e')));
+      }
+    } finally {
+      setState(() => _isSaving = false);
     }
   }
+
+  // ── Build ──────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -114,125 +311,401 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final predict = widget.predictResult;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Results')),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal: w * 0.05,
-          vertical: h * 0.02,
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: bgColor,
+        elevation: 0,
+        title: Text(
+          'Scan Results',
+          style: TextStyle(
+            color: textDark,
+            fontWeight: FontWeight.w700,
+            fontSize: w * 0.045,
+          ),
         ),
+        iconTheme: const IconThemeData(color: textDark),
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: h * 0.02),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('--- SOIL ANALYSIS ---'),
-            SizedBox(height: h * 0.01),
-            Text('Soil Type: ${predict['soil_type']}'),
-            Text('Confidence: ${predict['confidence']}'),
-            Text('Organic Matter: ${predict['om_level']}'),
-            SizedBox(height: h * 0.02),
-
-            // DRAINAGE INPUT
-            if (!_drainageSubmitted) ...[
-              const Text('--- HOW DOES WATER BEHAVE IN YOUR SOIL? ---'),
-              SizedBox(height: h * 0.01),
-              RadioListTile<int>(
-                title: const Text('Water pools and stays'),
-                value: -1,
-                groupValue: _drainageScore,
-                onChanged: (v) => setState(() => _drainageScore = v!),
-              ),
-              RadioListTile<int>(
-                title: const Text('Normal absorption'),
-                value: 0,
-                groupValue: _drainageScore,
-                onChanged: (v) => setState(() => _drainageScore = v!),
-              ),
-              RadioListTile<int>(
-                title: const Text('Water drains very fast'),
-                value: 1,
-                groupValue: _drainageScore,
-                onChanged: (v) => setState(() => _drainageScore = v!),
-              ),
-              SizedBox(height: h * 0.01),
-              SizedBox(
-                width: w,
-                height: h * 0.06,
-                child: ElevatedButton(
-                  onPressed: () => setState(() => _drainageSubmitted = true),
-                  child: const Text('Confirm Drainage'),
+            // ── SCANNED PHOTO ──────────────────────────────
+            if (widget.imageFile != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.file(
+                  widget.imageFile!,
+                  width: double.infinity,
+                  height: h * 0.25,
+                  fit: BoxFit.cover,
                 ),
               ),
-            ] else ...[
+              SizedBox(height: h * 0.01),
               Text(
-                'Drainage: ${_drainageScore == -1 ? 'Poor' : _drainageScore == 1 ? 'Excessive' : 'Normal'}',
-              ),
-            ],
-
-            SizedBox(height: h * 0.02),
-
-            // CROP INPUT
-            if (_drainageSubmitted && !_cropSubmitted) ...[
-              const Text('--- WHAT CROP DO YOU WANT TO PLANT? ---'),
-              SizedBox(height: h * 0.01),
-              TextField(
-                controller: _cropController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. rice, mais, kamote',
-                  border: OutlineInputBorder(),
+                widget.imageFile!.path.split('/').last,
+                style: TextStyle(
+                  fontSize: w * 0.03,
+                  color: Colors.grey.shade500,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: h * 0.01),
-              SizedBox(
-                width: w,
-                height: h * 0.06,
-                child: _isLoadingRecommend
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton(
-                        onPressed: _runRecommend,
-                        child: const Text('Get Recommendation'),
-                      ),
-              ),
-            ],
-
-            // RECOMMENDATION RESULTS
-            if (_recommendResult != null) ...[
               SizedBox(height: h * 0.02),
-              const Text('--- RECOMMENDATION ---'),
-              SizedBox(height: h * 0.01),
-              Text('Crop: ${_recommendResult!['crop']}'),
-              Text('Compatibility: ${_recommendResult!['compatibility']}'),
-              SizedBox(height: h * 0.01),
-              const Text('Issues:'),
-              ...List<String>.from(_recommendResult!['issues'])
-                  .map((i) => Text('- $i')),
-              SizedBox(height: h * 0.01),
-              const Text('What to fix:'),
-              ...List<String>.from(_recommendResult!['amendments'])
-                  .map((a) => Text('- $a')),
             ],
 
-            // EXPLANATION
+            // ── SOIL ANALYSIS ──────────────────────────────
+            _sectionLabel('✔ Soil Scan Complete'),
+            SizedBox(height: h * 0.01),
+            _infoCard(w, h, [
+              _infoRow('Soil Type', predict['soil_type'] ?? '—'),
+              _infoRow('Organic Matter', predict['om_level'] ?? '—'),
+              _infoRow('Confidence', predict['confidence'] ?? '—'),
+              _infoRow('Crop', widget.cropName),
+              _infoRow(
+                'Drainage',
+                widget.drainageScore == -1
+                    ? 'Poor'
+                    : widget.drainageScore == 1
+                    ? 'Excessive'
+                    : 'Normal',
+              ),
+            ]),
+
+            SizedBox(height: h * 0.025),
+
+            // ── RECOMMENDATION ─────────────────────────────
+            if (_isLoadingRecommend)
+              const Center(child: CircularProgressIndicator(color: darkGreen)),
+
+            if (_recommendResult != null) ...[
+              _sectionLabel('RECOMMENDATION'),
+              SizedBox(height: h * 0.01),
+              _infoCard(w, h, [
+                _infoRow('Crop', _recommendResult!['crop'] ?? '—'),
+                _infoRow(
+                  'Compatibility',
+                  _recommendResult!['compatibility'] ?? '—',
+                ),
+              ]),
+
+              if ((List<String>.from(
+                _recommendResult!['issues'],
+              )).isNotEmpty) ...[
+                SizedBox(height: h * 0.015),
+                _sectionLabel('Issues'),
+                SizedBox(height: h * 0.008),
+                ...List<String>.from(
+                  _recommendResult!['issues'],
+                ).map((i) => _bulletItem(w, i, Colors.red.shade300)),
+              ],
+
+              SizedBox(height: h * 0.015),
+              _sectionLabel('What to fix'),
+              SizedBox(height: h * 0.008),
+              ...List<String>.from(
+                _recommendResult!['amendments'],
+              ).map((a) => _bulletItem(w, a, darkGreen)),
+            ],
+
+            // ── EXPLANATION ────────────────────────────────
             if (_isLoadingExplain) ...[
               SizedBox(height: h * 0.02),
-              const Text('Getting explanation...'),
-              const Center(child: CircularProgressIndicator()),
+              const Center(child: CircularProgressIndicator(color: darkGreen)),
             ],
 
             if (_explainResult != null) ...[
-              SizedBox(height: h * 0.02),
-              const Text('--- WHAT HAPPENS IF YOU IGNORE THIS ---'),
+              SizedBox(height: h * 0.025),
+              _sectionLabel('WHAT HAPPENS IF YOU IGNORE THIS'),
               SizedBox(height: h * 0.01),
-              Text(_explainResult!['explanation']),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(w * 0.04),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Text(
+                  _explainResult!['explanation'] ?? '',
+                  style: TextStyle(
+                    fontSize: w * 0.037,
+                    color: textDark,
+                    height: 1.5,
+                  ),
+                ),
+              ),
             ],
 
-            // SAVE STATUS
-            if (_isSaved) ...[
-              SizedBox(height: h * 0.02),
-              const Text('Scan saved successfully.'),
+            // ── CHAT ───────────────────────────────────────
+            if (_chatVisible) ...[
+              SizedBox(height: h * 0.03),
+              const Divider(),
+
+              if (!_isSaved)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Chat is saved when you tap "Save Scan".',
+                          style: TextStyle(
+                            fontSize: w * 0.03,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              _sectionLabel('ASK ABOUT THIS SCAN'),
+              SizedBox(height: h * 0.01),
+
+              Container(
+                height: h * 0.35,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: borderColor),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _chatHistory.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Ask anything about your soil scan.',
+                          style: TextStyle(color: Colors.grey.shade400),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _chatScroll,
+                        padding: const EdgeInsets.all(10),
+                        itemCount: _chatHistory.length,
+                        itemBuilder: (context, index) {
+                          final msg = _chatHistory[index];
+                          final isUser = msg['role'] == 'user';
+                          return Align(
+                            alignment: isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.all(10),
+                              constraints: BoxConstraints(maxWidth: w * 0.75),
+                              decoration: BoxDecoration(
+                                color: isUser
+                                    ? darkGreen.withOpacity(0.15)
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                msg['content'] ?? '',
+                                style: TextStyle(fontSize: w * 0.035),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+
+              if (_isLoadingChat)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Center(
+                    child: CircularProgressIndicator(color: darkGreen),
+                  ),
+                ),
+
+              SizedBox(height: h * 0.01),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _chatController,
+                      maxLines: null,
+                      minLines: 1,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(
+                        hintText: 'Ask about this soil scan...',
+                        hintStyle: TextStyle(color: Colors.grey.shade400),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: borderColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: darkGreen),
+                        ),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.send, color: darkGreen),
+                    onPressed: _isLoadingChat ? null : _sendChatMessage,
+                  ),
+                ],
+              ),
+
+              SizedBox(height: h * 0.025),
+            ],
+
+            // ── SAVE SCAN — Back + Save side by side ───────
+            // Only shown before save. After save the farmer is
+            // on ScanSavedScreen so these buttons are irrelevant.
+            if (_explainResult != null && !_isSaved) ...[
+              Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.maybePop(context),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: borderColor),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: h * 0.02),
+                      ),
+                      child: const Text(
+                        '← Back',
+                        style: TextStyle(color: darkGreen),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: w * 0.03),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _saveScan,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: darkGreen,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: h * 0.02),
+                        elevation: 0,
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Save Scan →',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ],
 
             SizedBox(height: h * 0.04),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Reusable widgets ───────────────────────────────────────
+
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade500,
+        letterSpacing: 0.8,
+      ),
+    );
+  }
+
+  Widget _infoCard(double w, double h, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.04),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: textDark,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bulletItem(double w, String text, Color dotColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: w * 0.035, color: textDark),
+            ),
+          ),
+        ],
       ),
     );
   }

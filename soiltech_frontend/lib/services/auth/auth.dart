@@ -126,6 +126,51 @@ class AuthService {
     }
   }
 
+
+// ══════════════════════════════════════════════════════════════
+// CHANGE PASSWORD
+// ══════════════════════════════════════════════════════════════
+
+Future<Map<String, dynamic>> changePassword({
+  required String currentPassword,
+  required String newPassword,
+  required String confirmPassword,
+}) async {
+  try {
+    if (newPassword != confirmPassword) {
+      return {'success': false, 'message': 'New passwords do not match'};
+    }
+
+    if (currentPassword == newPassword) {
+      return {'success': false, 'message': 'Please enter a new password'};
+    }
+
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      return {'success': false, 'message': 'User not found'};
+    }
+
+    try {
+      await _client.auth.signInWithPassword(
+        email: user.email!,
+        password: currentPassword,
+      );
+    } catch (e) {
+      return {'success': false, 'message': 'Invalid current password'};
+    }
+
+    await _client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
+
+    return {'success': true, 'message': 'Password changed successfully'};
+  } catch (e) {
+    return {'success': false, 'message': 'Error: ${e.toString()}'};
+  }
+}
+
+
+
   // ══════════════════════════════════════════════════════════════
   // HELPERS
   // ══════════════════════════════════════════════════════════════
