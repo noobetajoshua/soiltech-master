@@ -1,11 +1,13 @@
 // lib/widgets/scan_screen.dart
 
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:soiltech/services/flask_soil_api.dart';
+
 import 'results_screen.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -21,6 +23,42 @@ class _ScanScreenState extends State<ScanScreen> {
   static const borderColor = Color(0xFF7D9C74);
   static const textDark = Color(0xFF0A2418);
   static const cropCardColor = Color(0xFFF5F8D6);
+
+  final PageController _pageController = PageController();
+  final TextEditingController _searchController = TextEditingController();
+
+  int _currentStep = 0;
+  static const int _totalSteps = 5;
+
+  List<String> _crops = [];
+  String? _selectedCrop;
+  bool _isLoadingCrops = true;
+  bool _isSearching = false;
+
+  int _wetDryScore = 0;
+  int _drainageScore = 0;
+
+  File? _selectedImage;
+  bool _isScanning = false;
+
+  Map<String, dynamic>? _predictResult;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCrops();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // =========================
+  // ASSET HELPERS
+  // =========================
 
   String _getCropAsset(String crop) {
     final key = crop.toLowerCase().trim().replaceAll(' ', '_').replaceAll('-', '_');
@@ -101,36 +139,9 @@ class _ScanScreenState extends State<ScanScreen> {
         .join(' ');
   }
 
-  final PageController _pageController = PageController();
-  int _currentStep = 0;
-  static const int _totalSteps = 5;
-
-  List<String> _crops = [];
-  String? _selectedCrop;
-  bool _isLoadingCrops = true;
-  bool _isSearching = false;
-  final TextEditingController _searchController = TextEditingController();
-
-  int _wetDryScore = 0;
-  int _drainageScore = 0;
-
-  File? _selectedImage;
-  bool _isScanning = false;
-
-  Map<String, dynamic>? _predictResult;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCrops();
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
+  // =========================
+  // DATA / BACKEND LOGIC
+  // =========================
 
   Future<void> _loadCrops() async {
     try {
@@ -162,17 +173,21 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _searchCrop(String input) async {
     if (input.trim().isEmpty) return;
     setState(() => _isSearching = true);
+
     try {
       final response = await http.post(
         Uri.parse('http://10.0.2.2:5000/normalize-crop'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'crop_name': input.trim()}),
       );
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final matched = data['crop'] as String?;
+
         if (matched != null && _crops.contains(matched)) {
           setState(() => _selectedCrop = matched);
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -229,15 +244,20 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source);
-    if (picked != null) setState(() => _selectedImage = File(picked.path));
+    if (picked != null) {
+      setState(() => _selectedImage = File(picked.path));
+    }
   }
 
   Future<void> _runScan() async {
     if (_selectedImage == null || _selectedCrop == null) return;
+
     setState(() => _isScanning = true);
+
     try {
       final result = await SoilApi.predict(_selectedImage!, _wetDryScore);
       setState(() => _predictResult = result);
+
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -267,6 +287,10 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
+  // =========================
+  // SHARED WIDGETS
+  // =========================
+
   Widget _buildNavButtons(double w, double h) {
     final isStep5 = _currentStep == 4;
     final isStep4 = _currentStep == 3;
@@ -294,71 +318,76 @@ class _ScanScreenState extends State<ScanScreen> {
         : null;
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: h * 0.02),
+      padding: EdgeInsets.fromLTRB(w * 0.05, h * 0.015, w * 0.05, h * 0.02),
       child: Row(
         children: [
           Expanded(
-            flex: 1,
-            child: OutlinedButton.icon(
-              onPressed: _prevStep,
-              icon: const Icon(
-                Icons.arrow_back_rounded,
-                color: Color(0xFF5B922F),
-              ),
-              label: const Text(
-                'Back',
-                style: TextStyle(
-                  color: Color(0xFF5B922F),
-                  fontWeight: FontWeight.w700,
+            child: SizedBox(
+              height: h * 0.075,
+              child: OutlinedButton.icon(
+                onPressed: _prevStep,
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: darkGreen,
                 ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF5B922F), width: 1.4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                label: const Text(
+                  'Back',
+                  style: TextStyle(
+                    color: darkGreen,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                padding: EdgeInsets.symmetric(vertical: h * 0.018),
-                backgroundColor: Colors.white,
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(color: darkGreen, width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                ),
               ),
             ),
           ),
-          SizedBox(width: w * 0.03),
+          SizedBox(width: w * 0.04),
           Expanded(
             flex: 2,
-            child: ElevatedButton.icon(
-              onPressed: rightAction,
-              icon: _isScanning
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
+            child: SizedBox(
+              height: h * 0.075,
+              child: ElevatedButton.icon(
+                onPressed: rightAction,
+                icon: _isScanning
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(
+                        isStep5
+                            ? Icons.check_circle_outline_rounded
+                            : isStep4
+                                ? Icons.document_scanner_outlined
+                                : Icons.arrow_forward_rounded,
                         color: Colors.white,
-                        strokeWidth: 2,
                       ),
-                    )
-                  : Icon(
-                      isStep5
-                          ? Icons.check_circle_outline_rounded
-                          : isStep4
-                              ? Icons.document_scanner_outlined
-                              : Icons.arrow_forward_rounded,
-                      color: Colors.white,
-                    ),
-              label: Text(
-                _isScanning ? '' : rightLabel,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
+                label: Text(
+                  _isScanning ? '' : rightLabel,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                  ),
                 ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: canProceed ? darkGreen : Colors.grey.shade300,
-                disabledBackgroundColor: Colors.grey.shade300,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: canProceed ? darkGreen : Colors.grey.shade300,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                  elevation: canProceed ? 6 : 0,
+                  shadowColor: darkGreen.withOpacity(0.28),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
                 ),
-                padding: EdgeInsets.symmetric(vertical: h * 0.018),
-                elevation: canProceed ? 3 : 0,
               ),
             ),
           ),
@@ -404,9 +433,7 @@ class _ScanScreenState extends State<ScanScreen> {
               height: w * 0.11,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: selected
-                    ? darkGreen.withOpacity(0.16)
-                    : cropCardColor,
+                color: selected ? darkGreen.withOpacity(0.16) : cropCardColor,
               ),
               child: Icon(
                 icon,
@@ -458,6 +485,10 @@ class _ScanScreenState extends State<ScanScreen> {
       ),
     );
   }
+
+  // =========================
+  // STEP 1
+  // =========================
 
   Widget _buildCropStep(double w, double h) {
     return Container(
@@ -606,7 +637,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       ),
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
-                        backgroundColor: const Color(0xFF5B922F),
+                        backgroundColor: darkGreen,
                         disabledBackgroundColor: const Color(0xFF80B155),
                         padding: EdgeInsets.symmetric(horizontal: w * 0.045),
                         shape: RoundedRectangleBorder(
@@ -744,63 +775,232 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  Widget _buildSoilConditionStep(double w, double h) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: w * 0.05),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.water_drop_outlined,
-            size: w * 0.12,
-            color: const Color(0xFF7EC8E3),
+  // =========================
+  // STEP 2
+  // =========================
+
+  Widget _buildSoilChoiceCard({
+    required double w,
+    required double h,
+    required bool selected,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        margin: EdgeInsets.only(bottom: h * 0.024),
+        padding: EdgeInsets.symmetric(
+          horizontal: w * 0.04,
+          vertical: h * 0.022,
+        ),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFF7FAEC) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected ? darkGreen : const Color(0xFFEAEAEA),
+            width: selected ? 2.4 : 1.4,
           ),
-          SizedBox(height: h * 0.01),
-          Text(
-            'How is your soil right now?',
-            style: TextStyle(
-              fontSize: w * 0.05,
-              fontWeight: FontWeight.w700,
-              color: textDark,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-          ),
-          SizedBox(height: h * 0.005),
-          Text(
-            'This helps us read your soil photo accurately.',
-            style: TextStyle(fontSize: w * 0.035, color: Colors.grey.shade600),
-          ),
-          SizedBox(height: h * 0.025),
-          _buildOptionCard(
-            w: w,
-            h: h,
-            selected: _wetDryScore == -1,
-            title: 'Wet',
-            subtitle: 'Soil is moist, muddy, or waterlogged',
-            icon: Icons.water_drop_rounded,
-            onTap: () => setState(() => _wetDryScore = -1),
-          ),
-          _buildOptionCard(
-            w: w,
-            h: h,
-            selected: _wetDryScore == 0,
-            title: 'Normal',
-            subtitle: 'Soil crumbles easily in hand',
-            icon: Icons.eco_rounded,
-            onTap: () => setState(() => _wetDryScore = 0),
-          ),
-          _buildOptionCard(
-            w: w,
-            h: h,
-            selected: _wetDryScore == 1,
-            title: 'Dry',
-            subtitle: 'Soil is hard, dusty, or cracked',
-            icon: Icons.wb_sunny_outlined,
-            onTap: () => setState(() => _wetDryScore = 1),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: w * 0.16,
+              height: w * 0.16,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: w * 0.085,
+              ),
+            ),
+            SizedBox(width: w * 0.045),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: w * 0.055,
+                      fontWeight: FontWeight.w800,
+                      color: textDark,
+                    ),
+                  ),
+                  SizedBox(height: h * 0.006),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: w * 0.036,
+                      height: 1.25,
+                      color: const Color(0xFF6E6E6E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: w * 0.02),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: w * 0.075,
+              height: w * 0.075,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? darkGreen : Colors.white,
+                border: Border.all(
+                  color: selected ? darkGreen : const Color(0xFFBDBDBD),
+                  width: 2,
+                ),
+              ),
+              child: selected
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    )
+                  : null,
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _buildSoilConditionStep(double w, double h) {
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: w * 0.045),
+        child: Column(
+          children: [
+            SizedBox(height: h * 0.02),
+
+            Container(
+              width: w * 0.28,
+              height: w * 0.28,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.07),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Container(
+                  width: w * 0.235,
+                  height: w * 0.235,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEAF5FF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/logo/water_drop.png',
+                      width: w * 0.14,
+                      height: w * 0.14,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.water_drop_rounded,
+                        color: Color(0xFF69B7F0),
+                        size: 58,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            SizedBox(height: h * 0.035),
+
+            Text(
+              'How is your soil right now?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: w * 0.075,
+                fontWeight: FontWeight.w900,
+                height: 1.1,
+                color: textDark,
+              ),
+            ),
+
+            SizedBox(height: h * 0.012),
+
+            Text(
+              'This helps us read your soil photo accurately.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: w * 0.043,
+                color: const Color(0xFF707070),
+              ),
+            ),
+
+            SizedBox(height: h * 0.04),
+
+            _buildSoilChoiceCard(
+              w: w,
+              h: h,
+              selected: _wetDryScore == -1,
+              title: 'Wet',
+              subtitle: 'Soil is moist, muddy, or waterlogged',
+              icon: Icons.water_drop_rounded,
+              iconColor: const Color(0xFF69B7F0),
+              iconBgColor: const Color(0xFFEAF5FF),
+              onTap: () => setState(() => _wetDryScore = -1),
+            ),
+
+            _buildSoilChoiceCard(
+              w: w,
+              h: h,
+              selected: _wetDryScore == 0,
+              title: 'Normal',
+              subtitle: 'Soil crumbles easily in hand',
+              icon: Icons.eco_rounded,
+              iconColor: const Color(0xFF8BBE35),
+              iconBgColor: const Color(0xFFF0F7DD),
+              onTap: () => setState(() => _wetDryScore = 0),
+            ),
+
+            _buildSoilChoiceCard(
+              w: w,
+              h: h,
+              selected: _wetDryScore == 1,
+              title: 'Dry',
+              subtitle: 'Soil is hard, dusty, or cracked',
+              icon: Icons.wb_sunny_rounded,
+              iconColor: const Color(0xFFF3BC1C),
+              iconBgColor: const Color(0xFFFFF5D8),
+              onTap: () => setState(() => _wetDryScore = 1),
+            ),
+
+            SizedBox(height: h * 0.01),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =========================
+  // STEP 3
+  // =========================
 
   Widget _buildDrainageStep(double w, double h) {
     return SingleChildScrollView(
@@ -859,6 +1059,10 @@ class _ScanScreenState extends State<ScanScreen> {
       ),
     );
   }
+
+  // =========================
+  // STEP 4
+  // =========================
 
   Widget _buildPhotoStep(double w, double h) {
     return SingleChildScrollView(
@@ -992,10 +1196,16 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
+  // =========================
+  // STEP 5
+  // =========================
+
   Widget _buildScanResultStep(double w, double h) {
     final result = _predictResult;
     if (result == null) {
-      return const Center(child: CircularProgressIndicator(color: darkGreen));
+      return const Center(
+        child: CircularProgressIndicator(color: darkGreen),
+      );
     }
 
     final soilType = result['soil_type'] ?? '-';
@@ -1137,6 +1347,10 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
+  // =========================
+  // BUILD
+  // =========================
+
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
@@ -1148,11 +1362,11 @@ class _ScanScreenState extends State<ScanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: h * 0.02),
+            SizedBox(height: h * 0.015),
             _buildProgressBar(w),
             _buildStepLabel(w),
-            const Divider(height: 1, color: Color(0xFFE7E1C5)),
-            SizedBox(height: h * 0.02),
+            const Divider(height: 1, color: Color(0xFFEDE8D7)),
+            SizedBox(height: h * 0.01),
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -1167,7 +1381,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 ],
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFE7E1C5)),
+            const Divider(height: 1, color: Color(0xFFEDE8D7)),
             _buildNavButtons(w, h),
           ],
         ),
@@ -1177,18 +1391,50 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Widget _buildProgressBar(double w) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: w * 0.05),
+      padding: EdgeInsets.symmetric(horizontal: w * 0.06),
       child: Row(
-        children: List.generate(_totalSteps, (i) {
-          return Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 5),
-              height: 7,
-              decoration: BoxDecoration(
-                color: i <= _currentStep
-                    ? const Color(0xFF93C83E)
-                    : const Color(0xFFE3E0D0),
-                borderRadius: BorderRadius.circular(20),
+        children: List.generate(_totalSteps * 2 - 1, (index) {
+          if (index.isOdd) {
+            final lineIndex = index ~/ 2;
+            final isActiveLine = lineIndex < _currentStep;
+            return Expanded(
+              child: Container(
+                height: 3,
+                color: isActiveLine
+                    ? const Color(0xFF8EC63F)
+                    : const Color(0xFFD9E5D0),
+              ),
+            );
+          }
+
+          final stepIndex = index ~/ 2;
+          final isCompleted = stepIndex < _currentStep;
+          final isCurrent = stepIndex == _currentStep;
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: w * 0.08,
+            height: w * 0.08,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isCurrent ? const Color(0xFF8EC63F) : Colors.white,
+              border: Border.all(
+                color: isCurrent || isCompleted
+                    ? const Color(0xFF8EC63F)
+                    : const Color(0xFFD9E5D0),
+                width: 2,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                '${stepIndex + 1}',
+                style: TextStyle(
+                  fontSize: w * 0.035,
+                  fontWeight: FontWeight.w700,
+                  color: isCurrent
+                      ? Colors.white
+                      : const Color(0xFF496B35),
+                ),
               ),
             ),
           );
@@ -1207,35 +1453,14 @@ class _ScanScreenState extends State<ScanScreen> {
     ];
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: 10),
-      child: Row(
-        children: [
-          if (_currentStep == 0) ...[
-            Image.asset(
-              'assets/logo/soiltech_logo.png',
-              width: w * 0.075,
-              height: w * 0.075,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.eco_rounded,
-                color: Color(0xFF80B155),
-              ),
-            ),
-            SizedBox(width: w * 0.025),
-          ],
-          Expanded(
-            child: Text(
-              labels[_currentStep],
-              style: TextStyle(
-                fontSize: w * 0.038,
-                color: _currentStep == 0
-                    ? const Color(0xFF174D22)
-                    : Colors.grey.shade600,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
+      padding: EdgeInsets.fromLTRB(w * 0.06, 18, w * 0.06, 10),
+      child: Text(
+        labels[_currentStep],
+        style: TextStyle(
+          fontSize: w * 0.046,
+          color: const Color(0xFF355B27),
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
