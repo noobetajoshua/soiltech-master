@@ -41,6 +41,8 @@ class _ScanScreenState extends State<ScanScreen> {
 
   File? _selectedImage;
   bool _isScanning = false;
+  bool _isPickingImage = false;
+
 
   Map<String, dynamic>? _predictResult;
 
@@ -243,13 +245,32 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+Future<void> _pickImage(ImageSource source) async {
+  if (_isPickingImage) return;
+
+  setState(() => _isPickingImage = true);
+
+  try {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source);
-    if (picked != null) {
+
+    if (picked != null && mounted) {
       setState(() => _selectedImage = File(picked.path));
     }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Image picker error: $e')),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isPickingImage = false);
+    } else {
+      _isPickingImage = false;
+    }
   }
+}
 
   Future<void> _runScan() async {
     if (_selectedImage == null || _selectedCrop == null) return;
@@ -1105,7 +1126,7 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
           SizedBox(height: h * 0.025),
           GestureDetector(
-            onTap: () => _pickImage(ImageSource.camera),
+  onTap: _isPickingImage ? null : () => _pickImage(ImageSource.camera),
             child: Container(
               width: double.infinity,
               height: h * 0.22,
@@ -1170,8 +1191,8 @@ class _ScanScreenState extends State<ScanScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => _pickImage(ImageSource.gallery),
-              icon: const Icon(Icons.photo_library_outlined, color: darkGreen),
+  onPressed: _isPickingImage ? null : () => _pickImage(ImageSource.gallery),
+  icon: const Icon(Icons.photo_library_outlined, color: darkGreen),
               label: const Text(
                 'Upload from gallery',
                 style: TextStyle(color: darkGreen),
