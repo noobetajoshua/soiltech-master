@@ -14,16 +14,18 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  static const Color pageBg = Color(0xFFFCFDF7);
+  static const Color pageBg = Color(0xFFFDFDF8);
   static const Color titleColor = Color(0xFF173F2B);
-  static const Color subtitleColor = Color(0xFF7E847C);
+  static const Color subtitleColor = Color(0xFF8A8F84);
   static const Color darkGreen = Color(0xFF2F6B31);
   static const Color mediumGreen = Color(0xFF5F9651);
   static const Color lightLime = Color(0xFFC9E454);
-  static const Color iconCircle = Color(0xFFF3F8DE);
-  static const Color dividerColor = Color(0xFFE9E9D8);
+  static const Color dividerColor = Color(0xFFE7E9DA);
   static const Color inputBorder = Color(0xFFDCE3C7);
   static const Color whiteCard = Color(0xFFFFFEFB);
+
+  static const String profileTopAsset = 'assets/logo/profile_bg_header.png';
+  static const String profileBottomAsset = 'assets/logo/profile_bg.png';
 
   final ProfilePhotoController _photoController = ProfilePhotoController();
 
@@ -213,12 +215,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     bottom: 0,
                     child: IgnorePointer(
                       child: Image.asset(
-                        'assets/logo/profile_bg.png',
+                        profileBottomAsset,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        height: h * 0.22,
-                        errorBuilder: (_, __, ___) =>
-                            const SizedBox.shrink(),
+                        height: h * 0.23,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
                     ),
                   ),
@@ -234,17 +235,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             _buildTopSection(w, h),
 
-                            Transform.translate(
-                              offset: Offset(0, -h * 0.015),
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: w * 0.07,
-                                ),
-                                child: _buildProfileCard(w, h),
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: w * 0.065,
                               ),
+                              child: _buildProfileCard(w, h),
                             ),
 
-                            SizedBox(height: h * 0.27),
+                            SizedBox(height: h * 0.24),
                           ],
                         ),
                       ),
@@ -257,111 +255,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildTopSection(double w, double h) {
-    final topInset = MediaQuery.of(context).padding.top;
+    final double topInset = MediaQuery.of(context).padding.top;
 
     return SizedBox(
-      height: h * 0.43,
+      height: h * 0.34,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            height: h * 0.34,
+          SizedBox(
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFF699755),
-                  Color(0xFFCBEA56),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.topRight,
-              ),
+            height: h * 0.28,
+            child: Image.asset(
+              profileTopAsset,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) {
+                return Container(
+                  color: const Color(0xFFEAF4C1),
+                );
+              },
             ),
           ),
 
           Positioned(
-            top: h * 0.29,
-            left: 0,
-            right: 0,
-            child: ClipPath(
-              clipper: _TopCurveClipper(),
-              child: Container(
-                height: h * 0.16,
-                color: pageBg,
-              ),
-            ),
-          ),
-
-          Positioned(
-            left: w * 0.06,
-            top: h * 0.22,
-            child: Icon(
-              Icons.eco_rounded,
-              size: w * 0.16,
-              color: Colors.white.withOpacity(0.18),
-            ),
-          ),
-
-          Positioned(
-            right: w * 0.07,
-            top: h * 0.21,
-            child: Icon(
-              Icons.local_florist_rounded,
-              size: w * 0.18,
-              color: Colors.white.withOpacity(0.22),
-            ),
-          ),
-
-          Positioned(
+            top: topInset + 14,
             left: w * 0.055,
             right: w * 0.055,
-            top: topInset + h * 0.02,
             child: Row(
               children: [
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Container(
-                    width: w * 0.11,
-                    height: w * 0.11,
-                    decoration: BoxDecoration(
+                    width: w * 0.10,
+                    height: w * 0.10,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF5F8D6),
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.08),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.45),
-                        width: 1.4,
-                      ),
                     ),
                     child: Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: w * 0.058,
+                      Icons.arrow_back_rounded,
+                      color: darkGreen,
+                      size: w * 0.055,
                     ),
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    'Profile',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: w * 0.085,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
+                const Spacer(),
                 GestureDetector(
                   onTap: _handleSignOut,
                   child: Container(
-                    width: w * 0.11,
-                    height: w * 0.11,
+                    width: w * 0.10,
+                    height: w * 0.10,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFF9F8F1),
+                      color: Color(0xFFF5F8D6),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.logout_rounded,
                       color: darkGreen,
-                      size: w * 0.062,
+                      size: w * 0.055,
                     ),
                   ),
                 ),
@@ -370,7 +320,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
 
           Positioned(
-            top: h * 0.215,
+            top: topInset + h * 0.05,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                Text(
+                  'Profile',
+                  style: TextStyle(
+                    color: darkGreen,
+                    fontSize: w * 0.072,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: h * 0.006),
+                Text(
+                  'Manage your account and preferences',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: subtitleColor,
+                    fontSize: w * 0.032,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Positioned(
+            bottom: 0,
             left: 0,
             right: 0,
             child: Center(
@@ -378,25 +356,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    width: w * 0.32,
-                    height: w * 0.32,
-                    padding: EdgeInsets.all(w * 0.012),
+                    width: w * 0.30,
+                    height: w * 0.30,
+                    padding: EdgeInsets.all(w * 0.010),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.09),
-                          blurRadius: 18,
-                          offset: const Offset(0, 10),
+                          color: Colors.black.withOpacity(0.10),
+                          blurRadius: 14,
+                          offset: const Offset(0, 7),
                         ),
                       ],
                     ),
                     child: ClipOval(
-                      child: _buildProfileImage(w * 0.23),
+                      child: _buildProfileImage(w * 0.22),
                     ),
                   ),
-
                   Positioned(
                     bottom: w * 0.005,
                     right: -w * 0.005,
@@ -407,11 +384,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         });
                       },
                       child: Container(
-                        width: w * 0.09,
-                        height: w * 0.09,
+                        width: w * 0.085,
+                        height: w * 0.085,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
                           color: darkGreen,
+                          shape: BoxShape.circle,
                           border: Border.all(
                             color: Colors.white,
                             width: 4,
@@ -427,15 +404,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Icon(
                           Icons.camera_alt_rounded,
                           color: Colors.white,
-                          size: w * 0.045,
+                          size: w * 0.042,
                         ),
                       ),
                     ),
                   ),
-
                   if (showPictureMenu)
                     Positioned(
-                      top: w * 0.34,
+                      top: w * 0.32,
                       right: -w * 0.12,
                       child: GestureDetector(
                         onTap: () {},
@@ -461,16 +437,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       decoration: BoxDecoration(
         color: whiteCard,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: const Color(0xFFF0F0E5),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.07),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 20,
-            offset: const Offset(0, 12),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -492,9 +468,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   value: _username.isNotEmpty ? _username : '—',
                 ),
 
-          SizedBox(height: h * 0.01),
+          SizedBox(height: h * 0.008),
           Container(height: 1, color: dividerColor),
-          SizedBox(height: h * 0.01),
+          SizedBox(height: h * 0.008),
 
           _isEditMode
               ? _buildEditableRow(
@@ -530,7 +506,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: EdgeInsets.symmetric(vertical: h * 0.014),
               child: Row(
                 children: [
-                  _buildCircleIcon(
+                  _buildPlainIcon(
                     w: w,
                     icon: Icons.lock_outline_rounded,
                   ),
@@ -539,7 +515,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Text(
                       'Change Password',
                       style: TextStyle(
-                        fontSize: w * 0.05,
+                        fontSize: w * 0.048,
                         fontWeight: FontWeight.w900,
                         color: darkGreen,
                       ),
@@ -548,7 +524,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Icon(
                     Icons.chevron_right_rounded,
                     color: darkGreen,
-                    size: w * 0.08,
+                    size: w * 0.075,
                   ),
                 ],
               ),
@@ -557,11 +533,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           SizedBox(height: h * 0.008),
           Container(height: 1, color: dividerColor),
-          SizedBox(height: h * 0.024),
+          SizedBox(height: h * 0.022),
 
           SizedBox(
             width: double.infinity,
-            height: h * 0.072,
+            height: h * 0.07,
             child: _buildActionButton(w),
           ),
         ],
@@ -581,7 +557,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _buildCircleIcon(w: w, icon: icon),
+          _buildPlainIcon(w: w, icon: icon),
           SizedBox(width: w * 0.04),
           Expanded(
             child: Column(
@@ -628,7 +604,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Padding(
             padding: EdgeInsets.only(top: h * 0.022),
-            child: _buildCircleIcon(w: w, icon: icon),
+            child: _buildPlainIcon(w: w, icon: icon),
           ),
           SizedBox(width: w * 0.04),
           Expanded(
@@ -684,23 +660,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
- Widget _buildCircleIcon({
-  required double w,
-  required IconData icon,
-}) {
-  return SizedBox(
-    width: w * 0.10,
-    height: w * 0.10,
-    child: Center(
-      child: Icon(
-        icon,
-        color: darkGreen,
-        size: w * 0.060,
+  Widget _buildPlainIcon({
+    required double w,
+    required IconData icon,
+  }) {
+    return SizedBox(
+      width: w * 0.08,
+      height: w * 0.08,
+      child: Center(
+        child: Icon(
+          icon,
+          color: darkGreen,
+          size: w * 0.06,
+        ),
       ),
-    ),
-  );
-  //sjdksjdksjdks
-}
+    );
+  }
+
   Widget _buildDashedDivider() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -762,7 +738,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Icon(
                   Icons.eco_outlined,
                   color: Colors.white.withOpacity(0.85),
-                  size: w * 0.075,
+                  size: w * 0.07,
                 ),
               ),
               Center(
@@ -778,7 +754,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     : Text(
                         _isEditMode ? 'Save Profile' : 'Edit Profile',
                         style: TextStyle(
-                          fontSize: w * 0.052,
+                          fontSize: w * 0.05,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                         ),
@@ -901,27 +877,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-}
-
-class _TopCurveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-
-    path.moveTo(0, 70);
-    path.quadraticBezierTo(
-      size.width * 0.5,
-      -22,
-      size.width,
-      70,
-    );
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
