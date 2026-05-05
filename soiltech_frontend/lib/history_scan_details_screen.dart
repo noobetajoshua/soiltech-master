@@ -1,4 +1,4 @@
-// lib/widgets/scan_detail_screen.dart
+// code 1
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,17 +16,24 @@ class ScanDetailScreen extends StatefulWidget {
 
 class _ScanDetailScreenState extends State<ScanDetailScreen> {
   // ── Constants ──────────────────────────────────────────────
-  static const bgColor     = Color(0xFFF1EFEA);
-  static const darkGreen   = Color.fromARGB(255, 114, 168, 127);
+  static const bgColor = Color(0xFFFBFAF5);
+  static const darkGreen = Color.fromARGB(255, 114, 168, 127);
   static const borderColor = Color(0xFF7D9C74);
-  static const textDark    = Color(0xFF0A2418);
+  static const textDark = Color(0xFF0A2418);
+
+  static const deepGreen = Color(0xFF0A4A1D);
+  static const navyText = Color(0xFF17324A);
+  static const redColor = Color(0xFFFF4242);
+  static const goldColor = Color(0xFFC79A23);
+
+  static const String _chatAssistAsset = 'assets/logo/chatassist.png';
 
   // ── Chat state ─────────────────────────────────────────────
   final List<Map<String, String>> _chatHistory = [];
-  final TextEditingController _chatController  = TextEditingController();
-  final ScrollController _chatScroll           = ScrollController();
+  final TextEditingController _chatController = TextEditingController();
+  final ScrollController _chatScroll = ScrollController();
   bool _isLoadingChat = false;
-  String _farmerName  = 'Kuya';
+  String _farmerName = 'Kuya';
 
   @override
   void initState() {
@@ -74,7 +81,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
         _chatHistory.clear();
         for (final row in rows) {
           _chatHistory.add({
-            'role'   : row['role']    as String,
+            'role': row['role'] as String,
             'content': row['message'] as String,
           });
         }
@@ -95,7 +102,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
       await Supabase.instance.client.from('chat_messages').insert({
         'scan_id': scanId,
         'user_id': user.id,
-        'role'   : role,
+        'role': role,
         'message': message,
       });
     } catch (_) {}
@@ -119,9 +126,9 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
       final amendments = List<String>.from(widget.scan['amendments'] ?? []);
 
       final reply = await SoilApi.chat(
-        soilType : widget.scan['soil_type']  ?? '',
-        omLevel  : widget.scan['om_level']   ?? '',
-        cropName : widget.scan['crop_name']  ?? '',
+        soilType: widget.scan['soil_type'] ?? '',
+        omLevel: widget.scan['om_level'] ?? '',
+        cropName: widget.scan['crop_name'] ?? '',
         amendments: amendments,
         farmerName: _farmerName,
         conversationHistory: _chatHistory
@@ -135,9 +142,9 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
       await _saveChatMessage('assistant', reply);
     } catch (_) {
       setState(() => _chatHistory.add({
-        'role'   : 'assistant',
-        'content': 'Sorry, something went wrong. Please try again.',
-      }));
+            'role': 'assistant',
+            'content': 'Sorry, something went wrong. Please try again.',
+          }));
     } finally {
       setState(() => _isLoadingChat = false);
       _scrollToBottom();
@@ -150,7 +157,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
         _chatScroll.animateTo(
           _chatScroll.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
-          curve   : Curves.easeOut,
+          curve: Curves.easeOut,
         );
       }
     });
@@ -159,352 +166,1188 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   // ── Helpers ────────────────────────────────────────────────
 
   Color _chipColor(String? value) {
-    switch (value?.toLowerCase()) {
-      case 'high'        : return Colors.green.shade600;
-      case 'moderate'    : return Colors.orange.shade600;
-      case 'low'         : return Colors.red.shade400;
-      case 'suitable'    : return Colors.green.shade600;
-      case 'fair'        : return Colors.orange.shade600;
-      case 'not_suitable': return Colors.red.shade400;
-      default            : return darkGreen;
+    switch ( value?.toLowerCase()) {
+      case 'high':
+        return Colors.green.shade600;
+      case 'moderate':
+        return Colors.orange.shade600;
+      case 'low':
+        return Colors.red.shade400;
+      case 'suitable':
+        return Colors.green.shade600;
+      case 'fair':
+        return Colors.orange.shade600;
+      case 'not_suitable':
+        return Colors.red.shade400;
+      default:
+        return darkGreen;
     }
+  }
+
+  String _cleanValue(dynamic value) {
+    if (value == null) return '—';
+
+    final text = value.toString();
+    if (text.isEmpty) return '—';
+
+    if (text.toLowerCase() == 'not_suitable') {
+      return 'Not suitable';
+    }
+
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
+  void _openChatAssistPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _ScanChatAssistPage(parent: this),
+      ),
+    );
   }
 
   // ── Build ──────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final w        = MediaQuery.of(context).size.width;
-    final h        = MediaQuery.of(context).size.height;
-    final scan     = widget.scan;
+    final w = MediaQuery.of(context).size.width;
+    final h = MediaQuery.of(context).size.height;
+    final scan = widget.scan;
     final imageUrl = scan['image_url'] as String?;
+
+    final issues = List<String>.from(scan['issues'] ?? []);
+    final amendments = List<String>.from(scan['amendments'] ?? []);
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation      : 0,
-        title          : Text(
-          'Scan Detail',
-          style: TextStyle(
-            color     : textDark,
-            fontWeight: FontWeight.w700,
-            fontSize  : w * 0.045,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFFFFCF5),
+                    Color(0xFFFCFBF3),
+                    Color(0xFFF7FAEE),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        iconTheme: const IconThemeData(color: textDark),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal: w * 0.05,
-          vertical  : h * 0.02,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
 
-            // ── Scanned photo ──────────────────────────────
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: imageUrl != null && imageUrl.isNotEmpty
-                  ? Image.network(
-                      imageUrl,
-                      width : double.infinity,
-                      height: h * 0.25,
-                      fit   : BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _photoPlaceholder(w, h),
-                    )
-                  : _photoPlaceholder(w, h),
+          Positioned(
+            top: h * 0.08,
+            right: -w * 0.10,
+            child: Icon(
+              Icons.eco_rounded,
+              color: darkGreen.withOpacity(0.08),
+              size: w * 0.42,
             ),
+          ),
 
-            SizedBox(height: h * 0.025),
-
-            // ── Soil scan complete ─────────────────────────
-            _sectionLabel('✔ Soil Scan Complete'),
-            SizedBox(height: h * 0.01),
-            _infoCard(w, [
-              _infoRow(w, Icons.layers,    'Soil Type',      scan['soil_type']  ?? '—', darkGreen),
-              _divider(),
-              _infoRow(w, Icons.eco,       'Organic Matter', scan['om_level']   ?? '—', _chipColor(scan['om_level'])),
-              _divider(),
-              _infoRow(w, Icons.bar_chart, 'Confidence',     scan['confidence'] ?? '—', darkGreen),
-              _divider(),
-              _infoRow(w, Icons.grass,     'Crop',           scan['crop_name']  ?? '—', darkGreen),
-            ]),
-
-            SizedBox(height: h * 0.025),
-
-            // ── Recommendation ─────────────────────────────
-            _sectionLabel('RECOMMENDATION'),
-            SizedBox(height: h * 0.01),
-            _infoCard(w, [
-              _infoRow(
-                w,
-                Icons.check_circle_outline,
-                'Compatibility',
-                scan['compatibility'] ?? '—',
-                _chipColor(scan['compatibility']),
-              ),
-            ]),
-
-            if ((List<String>.from(scan['issues'] ?? [])).isNotEmpty) ...[
-              SizedBox(height: h * 0.015),
-              _sectionLabel('Issues'),
-              SizedBox(height: h * 0.008),
-              ...List<String>.from(scan['issues'])
-                  .map((i) => _bulletItem(w, i, Colors.red.shade300)),
-            ],
-
-            SizedBox(height: h * 0.015),
-            _sectionLabel('What to fix'),
-            SizedBox(height: h * 0.008),
-            ...List<String>.from(scan['amendments'] ?? [])
-                .map((a) => _bulletItem(w, a, darkGreen)),
-
-            // ── Explanation ────────────────────────────────
-            if (scan['explanation'] != null) ...[
-              SizedBox(height: h * 0.025),
-              _sectionLabel('WHAT HAPPENS IF YOU IGNORE THIS'),
-              SizedBox(height: h * 0.01),
-              Container(
-                width  : double.infinity,
-                padding: EdgeInsets.all(w * 0.04),
-                decoration: BoxDecoration(
-                  color       : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border      : Border.all(color: borderColor),
-                ),
-                child: Text(
-                  scan['explanation'] as String,
-                  style: TextStyle(
-                    fontSize: w * 0.037,
-                    color   : textDark,
-                    height  : 1.5,
-                  ),
-                ),
-              ),
-            ],
-
-            // ── Chat ───────────────────────────────────────
-            SizedBox(height: h * 0.03),
-            const Divider(),
-            _sectionLabel('ASK ABOUT THIS SCAN'),
-            SizedBox(height: h * 0.01),
-
-            Container(
-              height    : h * 0.35,
-              decoration: BoxDecoration(
-                color       : Colors.white,
-                border      : Border.all(color: borderColor),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: _chatHistory.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Ask anything about your soil scan.',
-                        style: TextStyle(color: Colors.grey.shade400),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _chatScroll,
-                      padding   : const EdgeInsets.all(10),
-                      itemCount : _chatHistory.length,
-                      itemBuilder: (context, index) {
-                        final msg    = _chatHistory[index];
-                        final isUser = msg['role'] == 'user';
-                        return Align(
-                          alignment: isUser
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin    : const EdgeInsets.symmetric(vertical: 4),
-                            padding   : const EdgeInsets.all(10),
-                            constraints: BoxConstraints(maxWidth: w * 0.75),
-                            decoration: BoxDecoration(
-                              color: isUser
-                                  ? darkGreen.withOpacity(0.15)
-                                  : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              msg['content'] ?? '',
-                              style: TextStyle(fontSize: w * 0.035),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-
-            if (_isLoadingChat)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child  : Center(
-                  child: CircularProgressIndicator(color: darkGreen),
-                ),
-              ),
-
-            SizedBox(height: h * 0.01),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+          SafeArea(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller     : _chatController,
-                    maxLines       : null,
-                    minLines       : 1,
-                    keyboardType   : TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    decoration     : InputDecoration(
-                      hintText : 'Ask about this soil scan...',
-                      hintStyle: TextStyle(color: Colors.grey.shade400),
-                      border   : OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide  : const BorderSide(color: borderColor),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    w * 0.045,
+                    h * 0.018,
+                    w * 0.045,
+                    h * 0.012,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: w * 0.072,
+                        height: w * 0.072,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEAF4DD),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: deepGreen,
+                            size: w * 0.04,
+                          ),
+                        ),
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide  : const BorderSide(color: darkGreen),
+                      SizedBox(width: w * 0.025),
+                      Text(
+                        'Scan Detail',
+                        style: TextStyle(
+                          color: deepGreen,
+                          fontWeight: FontWeight.w900,
+                          fontSize: w * 0.052,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                      isDense       : true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical  : 12,
-                      ),
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon    : const Icon(Icons.send, color: darkGreen),
-                  onPressed: _isLoadingChat ? null : _sendChatMessage,
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      w * 0.045,
+                      h * 0.005,
+                      w * 0.045,
+                      h * 0.11,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _topScanCard(w, h, scan, imageUrl),
+
+                        SizedBox(height: h * 0.024),
+
+                        _sectionTitle(
+                          w,
+                          icon: Icons.eco_rounded,
+                          title: 'Recommendation',
+                          color: deepGreen,
+                        ),
+
+                        SizedBox(height: h * 0.008),
+
+                        _compatibilityCard(
+                          w: w,
+                          label: 'Compatibility',
+                          value: _cleanValue(scan['compatibility']),
+                          color: _chipColor(scan['compatibility']),
+                        ),
+
+                        if (issues.isNotEmpty) ...[
+                          SizedBox(height: h * 0.022),
+                          _issuesCard(w, issues),
+                        ],
+
+                        SizedBox(height: h * 0.022),
+
+                        _fixCard(w, amendments),
+
+                        if (scan['explanation'] != null) ...[
+                          SizedBox(height: h * 0.022),
+                          _ignoreCard(
+                            w,
+                            _cleanValue(scan['explanation']),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
+          ),
 
-            SizedBox(height: h * 0.04),
-          ],
-        ),
+          Positioned(
+            right: w * 0.035,
+            bottom: h * 0.035,
+            child: _chatFloatingButton(w),
+          ),
+        ],
       ),
     );
   }
 
-  // ── Reusable widgets ───────────────────────────────────────
+  // ── Detail UI widgets ──────────────────────────────────────
 
-  Widget _photoPlaceholder(double w, double h) {
+  Widget _topScanCard(
+    double w,
+    double h,
+    Map<String, dynamic> scan,
+    String? imageUrl,
+  ) {
     return Container(
-      width : double.infinity,
-      height: h * 0.25,
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.028),
       decoration: BoxDecoration(
-        color       : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withOpacity(0.94),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor, width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: deepGreen.withOpacity(0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: Icon(
-        Icons.image_outlined,
-        size : w * 0.15,
-        color: Colors.grey.shade300,
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: imageUrl != null && imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    width: w * 0.42,
+                    height: h * 0.19,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _photoPlaceholder(w, h),
+                  )
+                : _photoPlaceholder(w, h),
+          ),
+
+          SizedBox(width: w * 0.04),
+
+          Expanded(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: w * 0.055,
+                      height: w * 0.055,
+                      decoration: const BoxDecoration(
+                        color: darkGreen,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: w * 0.042,
+                      ),
+                    ),
+                    SizedBox(width: w * 0.018),
+                    Expanded(
+                      child: Text(
+                        'Soil Scan Complete',
+                        style: TextStyle(
+                          color: deepGreen,
+                          fontWeight: FontWeight.w900,
+                          fontSize: w * 0.031,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: h * 0.015),
+                _thinDivider(),
+
+                _scanInfoRow(
+                  w,
+                  Icons.layers_rounded,
+                  'Soil Type',
+                  _cleanValue(scan['soil_type']),
+                  darkGreen,
+                ),
+                _thinDivider(),
+
+                _scanInfoRow(
+                  w,
+                  Icons.eco_rounded,
+                  'Organic Matter',
+                  _cleanValue(scan['om_level']),
+                  _chipColor(scan['om_level']),
+                ),
+                _thinDivider(),
+
+                _scanInfoRow(
+                  w,
+                  Icons.bar_chart_rounded,
+                  'Confidence',
+                  _cleanValue(scan['confidence']),
+                  darkGreen,
+                ),
+                _thinDivider(),
+
+                _scanInfoRow(
+                  w,
+                  Icons.grass_rounded,
+                  'Crop',
+                  _cleanValue(scan['crop_name']),
+                  darkGreen,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize    : 13,
-        fontWeight  : FontWeight.w700,
-        color       : Colors.grey.shade500,
-        letterSpacing: 0.8,
-      ),
-    );
-  }
-
-  Widget _infoCard(double w, List<Widget> children) {
-    return Container(
-      width  : double.infinity,
-      padding: EdgeInsets.all(w * 0.04),
-      decoration: BoxDecoration(
-        color       : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border      : Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
-    );
-  }
-
-  Widget _infoRow(
+  Widget _scanInfoRow(
     double w,
     IconData icon,
     String label,
     String value,
-    Color chipColor,
+    Color valueColor,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: w * 0.045, color: Colors.grey.shade400),
-            SizedBox(width: w * 0.025),
-            Text(
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: w * 0.014),
+      child: Row(
+        children: [
+          Container(
+            width: w * 0.045,
+            height: w * 0.045,
+            decoration: const BoxDecoration(
+              color: Color(0xFFEFF6E7),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: darkGreen,
+              size: w * 0.031,
+            ),
+          ),
+          SizedBox(width: w * 0.015),
+          Expanded(
+            child: Text(
               label,
               style: TextStyle(
-                fontSize: w * 0.035,
-                color   : Colors.grey.shade500,
+                color: navyText,
+                fontSize: w * 0.028,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color       : chipColor.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(
-            value[0].toUpperCase() + value.substring(1),
-            style: TextStyle(
-              fontSize  : w * 0.032,
-              fontWeight: FontWeight.w700,
-              color     : chipColor,
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: w * 0.022,
+              vertical: w * 0.007,
             ),
+            decoration: BoxDecoration(
+              color: valueColor.withOpacity(0.13),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              value,
+              style: TextStyle(
+                color: valueColor,
+                fontSize: w * 0.026,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(
+    double w, {
+    required IconData icon,
+    required String title,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: w * 0.056,
+          height: w * 0.056,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.10),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: w * 0.038,
+          ),
+        ),
+        SizedBox(width: w * 0.014),
+        Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontSize: w * 0.034,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ],
     );
   }
 
-  Widget _divider() => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 6),
-        child  : Divider(height: 1),
-      );
-
-  Widget _bulletItem(double w, String text, Color dotColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child  : Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _compatibilityCard({
+    required double w,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: w * 0.035,
+        vertical: w * 0.022,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE6EAD8)),
+        boxShadow: [
+          BoxShadow(
+            color: deepGreen.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child  : Container(
-              width : 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: dotColor,
-                shape: BoxShape.circle,
+          Container(
+            width: w * 0.052,
+            height: w * 0.052,
+            decoration: const BoxDecoration(
+              color: Color(0xFFEFF6E7),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.verified_user_outlined,
+              color: darkGreen,
+              size: w * 0.034,
+            ),
+          ),
+          SizedBox(width: w * 0.025),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: navyText,
+                fontSize: w * 0.032,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: w * 0.027,
+              vertical: w * 0.009,
+            ),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.16),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: w * 0.03,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _issuesCard(double w, List<String> issues) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.024),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFAFA).withOpacity(0.96),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFFD2D2)),
+        boxShadow: [
+          BoxShadow(
+            color: redColor.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: w * 0.044,
+                height: w * 0.044,
+                decoration: const BoxDecoration(
+                  color: redColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.priority_high_rounded,
+                  color: Colors.white,
+                  size: w * 0.032,
+                ),
+              ),
+              SizedBox(width: w * 0.014),
+              Text(
+                'Issues',
+                style: TextStyle(
+                  color: deepGreen,
+                  fontSize: w * 0.033,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: w * 0.018),
+
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(w * 0.022),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFFB8B8)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: issues
+                  .map(
+                    (issue) => _bulletText(
+                      w,
+                      text: issue,
+                      color: redColor,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fixCard(double w, List<String> fixes) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.024),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.94),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE1EBD5)),
+        boxShadow: [
+          BoxShadow(
+            color: deepGreen.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: w * 0.044,
+                height: w * 0.044,
+                decoration: const BoxDecoration(
+                  color: darkGreen,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.construction_rounded,
+                  color: Colors.white,
+                  size: w * 0.03,
+                ),
+              ),
+              SizedBox(width: w * 0.014),
+              Text(
+                'What to fix',
+                style: TextStyle(
+                  color: deepGreen,
+                  fontSize: w * 0.033,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: w * 0.018),
+
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(w * 0.022),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFDDEAD0)),
+            ),
+            child: Column(
+              children: [
+                for (final fix in fixes)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: w * 0.012),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          margin: EdgeInsets.only(top: w * 0.005),
+                          width: w * 0.023,
+                          height: w * 0.023,
+                          decoration: const BoxDecoration(
+                            color: darkGreen,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: w * 0.016,
+                          ),
+                        ),
+                        SizedBox(width: w * 0.014),
+                        Expanded(
+                          child: Text(
+                            fix,
+                            style: TextStyle(
+                              color: navyText,
+                              fontSize: w * 0.027,
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ignoreCard(double w, String explanation) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.024),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFCF4).withOpacity(0.96),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF0CF79)),
+        boxShadow: [
+          BoxShadow(
+            color: goldColor.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: w * 0.044,
+                height: w * 0.044,
+                decoration: const BoxDecoration(
+                  color: goldColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.white,
+                  size: w * 0.03,
+                ),
+              ),
+              SizedBox(width: w * 0.014),
+              Expanded(
+                child: Text(
+                  'What happens if you ignore this',
+                  style: TextStyle(
+                    color: deepGreen,
+                    fontSize: w * 0.033,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: w * 0.018),
+
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(w * 0.022),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE8C86D)),
+            ),
+            child: Text(
+              explanation,
+              style: TextStyle(
+                color: navyText,
+                fontSize: w * 0.029,
+                height: 1.55,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+Widget _chatFloatingButton(double w) {
+  return GestureDetector(
+    onTap: _openChatAssistPage,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: w * 0.28,
+          padding: EdgeInsets.symmetric(
+            horizontal: w * 0.02,
+            vertical: w * 0.012,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEAF4DD),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFB7D09A)),
+            boxShadow: [
+              BoxShadow(
+                color: deepGreen.withOpacity(0.12),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Text(
+            'Ask about\nthis scan',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: darkGreen,
+              fontWeight: FontWeight.w900,
+              fontSize: w * 0.024,
+              height: 1.15,
+            ),
+          ),
+        ),
+        SizedBox(height: w * 0.01),
+        Container(
+          width: w * 0.13,
+          height: w * 0.13,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: const Color(0xFFB7D09A),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: deepGreen.withOpacity(0.16),
+                blurRadius: 14,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
+          padding: EdgeInsets.all(w * 0.008),
+          child: Image.asset(
+            _chatAssistAsset,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.smart_toy_rounded,
+              color: darkGreen,
+              size: w * 0.075,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _photoPlaceholder(double w, double h) {
+    return Container(
+      width: w * 0.42,
+      height: h * 0.19,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(
+        Icons.image_outlined,
+        size: w * 0.13,
+        color: Colors.grey.shade300,
+      ),
+    );
+  }
+
+  Widget _thinDivider() {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      color: const Color(0xFFDDE6D4).withOpacity(0.75),
+    );
+  }
+
+  Widget _bulletText(
+    double w, {
+    required String text,
+    required Color color,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: w * 0.014),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: EdgeInsets.only(top: w * 0.01),
+            width: w * 0.011,
+            height: w * 0.011,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          SizedBox(width: w * 0.018),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: w * 0.035, color: textDark),
+              style: TextStyle(
+                color: navyText,
+                fontSize: w * 0.03,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Separate chatbot page for Ask About This Scan
+// ─────────────────────────────────────────────────────────────
+
+class _ScanChatAssistPage extends StatefulWidget {
+  final _ScanDetailScreenState parent;
+
+  const _ScanChatAssistPage({required this.parent});
+
+  @override
+  State<_ScanChatAssistPage> createState() => _ScanChatAssistPageState();
+}
+
+class _ScanChatAssistPageState extends State<_ScanChatAssistPage> {
+  static const Color bgColor = Color(0xFFFBFAF5);
+  static const Color darkGreen = Color.fromARGB(255, 114, 168, 127);
+  static const Color deepGreen = Color(0xFF0A4A1D);
+  static const Color borderColor = Color(0xFF7D9C74);
+  static const Color navyText = Color(0xFF17324A);
+
+  static const String _chatAssistAsset = 'assets/logo/chatassist.png';
+
+  Future<void> _send() async {
+    await widget.parent._sendChatMessage();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final h = MediaQuery.of(context).size.height;
+
+    final chatHistory = widget.parent._chatHistory;
+    final chatController = widget.parent._chatController;
+    final chatScroll = widget.parent._chatScroll;
+    final isLoadingChat = widget.parent._isLoadingChat;
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: Stack(
+        children: [
+          Positioned(
+            top: h * 0.08,
+            right: -w * 0.12,
+            child: Icon(
+              Icons.eco_rounded,
+              color: darkGreen.withOpacity(0.08),
+              size: w * 0.50,
+            ),
+          ),
+
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    w * 0.045,
+                    h * 0.018,
+                    w * 0.045,
+                    h * 0.012,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: w * 0.072,
+                        height: w * 0.072,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEAF4DD),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: deepGreen,
+                            size: w * 0.04,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: w * 0.025),
+                      Expanded(
+                        child: Text(
+                          'Ask About This Scan',
+                          style: TextStyle(
+                            color: deepGreen,
+                            fontWeight: FontWeight.w900,
+                            fontSize: w * 0.044,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: w * 0.075,
+                        height: w * 0.075,
+                        padding: EdgeInsets.all(w * 0.006),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFB7D09A),
+                            width: 1.4,
+                          ),
+                        ),
+                        child: Image.asset(
+                          _chatAssistAsset,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.smart_toy_rounded,
+                            color: darkGreen,
+                            size: w * 0.045,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: w * 0.045),
+                  child: Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(w * 0.035),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.96),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFDDEAD0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: deepGreen.withOpacity(0.06),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: w * 0.11,
+                          height: w * 0.11,
+                          padding: EdgeInsets.all(w * 0.008),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEAF4DD),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFB7D09A),
+                            ),
+                          ),
+                          child: Image.asset(
+                            _chatAssistAsset,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => Icon(
+                              Icons.smart_toy_rounded,
+                              color: darkGreen,
+                              size: w * 0.06,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: w * 0.025),
+                        Expanded(
+                          child: Text(
+                            'Ask anything about your soil scan, issues, crop compatibility, or what to fix.',
+                            style: TextStyle(
+                              color: navyText,
+                              fontSize: w * 0.032,
+                              height: 1.35,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: h * 0.014),
+
+                Expanded(
+                  child: Container(
+                    margin: EdgeInsets.symmetric(horizontal: w * 0.045),
+                    padding: EdgeInsets.all(w * 0.025),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.94),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: borderColor.withOpacity(0.75)),
+                    ),
+                    child: chatHistory.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Start a conversation about this scan.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: w * 0.034,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: chatScroll,
+                            itemCount: chatHistory.length,
+                            itemBuilder: (context, index) {
+                              final msg = chatHistory[index];
+                              final isUser = msg['role'] == 'user';
+
+                              return Align(
+                                alignment: isUser
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                    vertical: h * 0.006,
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: w * 0.032,
+                                    vertical: w * 0.025,
+                                  ),
+                                  constraints: BoxConstraints(
+                                    maxWidth: w * 0.72,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isUser
+                                        ? darkGreen.withOpacity(0.16)
+                                        : const Color(0xFFF3F7ED),
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: const Radius.circular(16),
+                                      topRight: const Radius.circular(16),
+                                      bottomLeft: Radius.circular(
+                                        isUser ? 16 : 4,
+                                      ),
+                                      bottomRight: Radius.circular(
+                                        isUser ? 4 : 16,
+                                      ),
+                                    ),
+                                    border: Border.all(
+                                      color: isUser
+                                          ? darkGreen.withOpacity(0.22)
+                                          : const Color(0xFFDDEAD0),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    msg['content'] ?? '',
+                                    style: TextStyle(
+                                      color: navyText,
+                                      fontSize: w * 0.034,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ),
+
+                if (isLoadingChat)
+                  Padding(
+                    padding: EdgeInsets.only(top: h * 0.01),
+                    child: const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: darkGreen,
+                        strokeWidth: 2.5,
+                      ),
+                    ),
+                  ),
+
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    w * 0.045,
+                    h * 0.012,
+                    w * 0.045,
+                    h * 0.018,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: chatController,
+                          maxLines: null,
+                          minLines: 1,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          decoration: InputDecoration(
+                            hintText: 'Ask about this soil scan...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: w * 0.034,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: const BorderSide(
+                                color: borderColor,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide(
+                                color: borderColor.withOpacity(0.65),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: const BorderSide(
+                                color: darkGreen,
+                                width: 1.5,
+                              ),
+                            ),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: w * 0.035,
+                              vertical: h * 0.014,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: w * 0.02),
+                      Container(
+                        width: w * 0.12,
+                        height: w * 0.12,
+                        decoration: const BoxDecoration(
+                          color: darkGreen,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: w * 0.052,
+                          ),
+                          onPressed: isLoadingChat ? null : _send,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],

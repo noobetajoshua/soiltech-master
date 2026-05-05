@@ -179,13 +179,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               errorBuilder: (_, __, ___) => Container(color: bgColor),
             ),
           ),
-
           Positioned.fill(
             child: Container(
               color: Colors.white.withOpacity(0.08),
             ),
           ),
-
           _isLoading
               ? const Center(
                   child: CircularProgressIndicator(color: darkGreen),
@@ -216,6 +214,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
         ],
       ),
+
+      // selectedIndex: 2 makes the History icon white.
+      // The circle highlight still stays on Scan because SoilTechBottomNav handles that.
       bottomNavigationBar: SoilTechBottomNav(
         selectedIndex: 2,
         onHomeTap: _goHome,
