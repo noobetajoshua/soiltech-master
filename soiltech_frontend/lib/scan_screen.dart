@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:soiltech/services/flask_soil_api.dart';
-import 'package:soiltech/snackbar/snackmessage.dart';
+
 import 'results_screen.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -30,9 +30,11 @@ class _ScanScreenState extends State<ScanScreen> {
   int _currentStep = 0;
   static const int _totalSteps = 5;
 
-  List<String> _crops = [];
-  String? _selectedCrop; // backend key: "rice", "eggplant", etc.
-  String? _displayCropName; // what farmer typed or tapped
+  // ── CHANGED: List<Map> instead of List<String>
+  // Each entry: {'key': 'eggplant', 'display': 'Eggplant'}
+  List<Map<String, String>> _crops = [];
+  String? _selectedCrop;       // backend key e.g. "eggplant"
+  String? _displayCropName;    // what to show on card e.g. "Talong" or "Eggplant"
   bool _isLoadingCrops = true;
   bool _isSearching = false;
 
@@ -41,6 +43,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   File? _selectedImage;
   bool _isScanning = false;
+  bool _isPickingImage = false;
 
   Map<String, dynamic>? _predictResult;
 
@@ -61,9 +64,8 @@ class _ScanScreenState extends State<ScanScreen> {
   // ASSET HELPERS
   // =========================
 
-  String _getCropAsset(String crop) {
-    final key =
-        crop.toLowerCase().trim().replaceAll(' ', '_').replaceAll('-', '_');
+  String _getCropAsset(String cropKey) {
+    final key = cropKey.toLowerCase().trim().replaceAll(' ', '_').replaceAll('-', '_');
 
     const assetMap = {
       'rice': 'rice.png',
@@ -130,49 +132,48 @@ class _ScanScreenState extends State<ScanScreen> {
     return 'assets/logo/${assetMap[key] ?? 'soiltech_logo.png'}';
   }
 
-  String _formatCropName(String crop) {
-    return crop
-        .split('_')
-        .map(
-          (word) => word.isEmpty
-              ? word
-              : '${word[0].toUpperCase()}${word.substring(1)}',
-        )
-        .join(' ');
-  }
-
   // =========================
   // DATA / BACKEND LOGIC
   // =========================
 
+  // ── CHANGED: calls /crops-display, builds List<Map>
   Future<void> _loadCrops() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/crops'));
+      final response = await http.get(Uri.parse('$baseUrl/crops-display'));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          _crops = List<String>.from(data['crops']);
+          _crops = List<Map<String, String>>.from(
+            (data['crops'] as List).map(
+              (c) => {
+                'key': c['key'] as String,
+                'display': c['display'] as String,
+              },
+            ),
+          );
           _isLoadingCrops = false;
         });
       }
     } catch (_) {
       if (!mounted) return;
       setState(() {
+        // Fallback with English display names
         _crops = [
-          'rice',
-          'corn',
-          'tomato',
-          'eggplant',
-          'camote',
-          'pechay',
-          'cassava',
-          'kangkong',
+          {'key': 'rice',      'display': 'Rice'},
+          {'key': 'corn',      'display': 'Corn'},
+          {'key': 'tomato',    'display': 'Tomato'},
+          {'key': 'eggplant',  'display': 'Eggplant'},
+          {'key': 'camote',    'display': 'Sweet Potato'},
+          {'key': 'pechay',    'display': 'Pechay'},
+          {'key': 'cassava',   'display': 'Cassava'},
+          {'key': 'kangkong',  'display': 'Kangkong'},
         ];
         _isLoadingCrops = false;
       });
     }
   }
 
+  // ── CHANGED: uses display from API, floats matched crop to top
   Future<void> _searchCrop(String input) async {
     if (input.trim().isEmpty) return;
     setState(() => _isSearching = true);
@@ -187,34 +188,42 @@ class _ScanScreenState extends State<ScanScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final matched = data['crop'] as String?;
+        final display = (data['display'] as String?) ?? input.trim();
 
-        if (matched != null && _crops.contains(matched)) {
-          // Use corrected display name from backend
-          final display = (data['display'] as String?) ?? input.trim();
+        if (matched != null) {
           setState(() {
             _selectedCrop = matched;
-            _displayCropName = display; // corrected spelling from AI
-            _crops.remove(matched);
-            _crops.insert(0, matched); // float to top
+            _displayCropName = display; // farmer sees their own language back
+
+            // Float matched crop to top of grid
+            _crops.removeWhere((c) => c['key'] == matched);
+            _crops.insert(0, {'key': matched, 'display': display});
           });
           // No snackbar — green card floating to top is enough feedback
         } else {
           if (mounted) {
-            showTopMessage(context, 'Crop not available', success: false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No matching crop found. Try another name.'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         }
       } else {
-        // 404 — no match found
         if (mounted) {
-          showTopMessage(context, 'Crop not available', success: false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No matching crop found. Try another name.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        showTopMessage(
-          context,
-          'Search error. Check connection.',
-          success: false,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Search error: $e')),
         );
       }
     } finally {
@@ -243,22 +252,35 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source);
-    if (picked != null) {
-      setState(() => _selectedImage = File(picked.path));
+    if (_isPickingImage) return;
+    setState(() => _isPickingImage = true);
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source);
+      if (picked != null && mounted) {
+        setState(() => _selectedImage = File(picked.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Image picker error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImage = false);
+      } else {
+        _isPickingImage = false;
+      }
     }
   }
 
   Future<void> _runScan() async {
     if (_selectedImage == null || _selectedCrop == null) return;
-
     setState(() => _isScanning = true);
-
     try {
       final result = await SoilApi.predict(_selectedImage!, _wetDryScore);
       setState(() => _predictResult = result);
-
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -269,13 +291,16 @@ class _ScanScreenState extends State<ScanScreen> {
             e.toString().contains('TimeoutException') ||
             e.toString().contains('Connection refused') ||
             e.toString().contains('SocketException');
-        showTopMessage(
-          context,
-          isTimeout
-              ? 'Connection timed out. Try again.'
-              : 'Scan failed. Try again.',
-          success: false,
-          duration: const Duration(seconds: 4),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isTimeout
+                  ? 'Connection timed out. The server may be starting up — please wait a moment and try again.'
+                  : 'Scan error: $e',
+            ),
+            backgroundColor: isTimeout ? Colors.orange.shade700 : Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     } finally {
@@ -297,9 +322,9 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // NAV BAR
-  // ══════════════════════════════════════════════════════════════
+  // =========================
+  // SHARED WIDGETS
+  // =========================
 
   Widget _buildNavButtons(double w, double h) {
     final isStep5 = _currentStep == 4;
@@ -339,10 +364,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 icon: const Icon(Icons.arrow_back_rounded, color: darkGreen),
                 label: const Text(
                   'Back',
-                  style: TextStyle(
-                    color: darkGreen,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(color: darkGreen, fontWeight: FontWeight.w800),
                 ),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: Colors.white,
@@ -354,7 +376,7 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ),
           ),
-          SizedBox(width: w * 0.03),
+          SizedBox(width: w * 0.04),
           Expanded(
             flex: 2,
             child: SizedBox(
@@ -387,8 +409,7 @@ class _ScanScreenState extends State<ScanScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      canProceed ? darkGreen : Colors.grey.shade300,
+                  backgroundColor: canProceed ? darkGreen : Colors.grey.shade300,
                   disabledBackgroundColor: Colors.grey.shade300,
                   elevation: canProceed ? 6 : 0,
                   shadowColor: darkGreen.withOpacity(0.28),
@@ -404,10 +425,6 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  // =========================
-  // SHARED WIDGETS
-  // =========================
-
   Widget _buildOptionCard({
     required double w,
     required double h,
@@ -422,8 +439,7 @@ class _ScanScreenState extends State<ScanScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: EdgeInsets.only(bottom: h * 0.015),
-        padding:
-            EdgeInsets.symmetric(horizontal: w * 0.04, vertical: h * 0.02),
+        padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: h * 0.02),
         decoration: BoxDecoration(
           color: selected ? darkGreen.withOpacity(0.08) : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -446,8 +462,7 @@ class _ScanScreenState extends State<ScanScreen> {
               height: w * 0.11,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color:
-                    selected ? darkGreen.withOpacity(0.16) : cropCardColor,
+                color: selected ? darkGreen.withOpacity(0.16) : cropCardColor,
               ),
               child: Icon(
                 icon,
@@ -530,7 +545,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       ),
                       SizedBox(height: h * 0.012),
                       Text(
-                        'Tap a crop or search in Tagalog or English.',
+                        'Tap a crop or search in Bisaya, Tagalog, or English.',
                         style: TextStyle(
                           fontSize: w * 0.038,
                           height: 1.25,
@@ -558,7 +573,10 @@ class _ScanScreenState extends State<ScanScreen> {
               ],
             ),
           ),
+
           SizedBox(height: h * 0.02),
+
+          // ── Search bar
           Padding(
             padding: EdgeInsets.symmetric(horizontal: w * 0.05),
             child: Container(
@@ -586,7 +604,7 @@ class _ScanScreenState extends State<ScanScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'e.g. palay, mais, kamote...',
+                        hintText: 'e.g. palay, mais, kamote, tarong...',
                         hintStyle: TextStyle(
                           color: Colors.grey.shade400,
                           fontWeight: FontWeight.w400,
@@ -653,8 +671,7 @@ class _ScanScreenState extends State<ScanScreen> {
                         elevation: 0,
                         backgroundColor: darkGreen,
                         disabledBackgroundColor: const Color(0xFF80B155),
-                        padding:
-                            EdgeInsets.symmetric(horizontal: w * 0.045),
+                        padding: EdgeInsets.symmetric(horizontal: w * 0.045),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
@@ -665,13 +682,15 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ),
           ),
+
           SizedBox(height: h * 0.018),
+
+          // ── CHANGED: grid uses cropMap['key'] for asset + selection,
+          //             cropMap['display'] for the label shown to farmer
           Expanded(
             child: _isLoadingCrops
                 ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF80B155),
-                    ),
+                    child: CircularProgressIndicator(color: Color(0xFF80B155)),
                   )
                 : Padding(
                     padding: EdgeInsets.symmetric(horizontal: w * 0.05),
@@ -687,13 +706,15 @@ class _ScanScreenState extends State<ScanScreen> {
                       ),
                       itemCount: _crops.length,
                       itemBuilder: (context, index) {
-                        final crop = _crops[index];
-                        final selected = _selectedCrop == crop;
+                        final cropMap = _crops[index];
+                        final cropKey = cropMap['key']!;
+                        final cropDisplay = cropMap['display']!;
+                        final selected = _selectedCrop == cropKey;
 
                         return GestureDetector(
                           onTap: () => setState(() {
-                            _selectedCrop = crop;
-                            _displayCropName = _formatCropName(crop);
+                            _selectedCrop = cropKey;
+                            _displayCropName = cropDisplay;
                           }),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
@@ -710,8 +731,7 @@ class _ScanScreenState extends State<ScanScreen> {
                               boxShadow: [
                                 BoxShadow(
                                   color: selected
-                                      ? const Color(0xFF80B155)
-                                          .withOpacity(0.20)
+                                      ? const Color(0xFF80B155).withOpacity(0.20)
                                       : Colors.black.withOpacity(0.05),
                                   blurRadius: selected ? 14 : 8,
                                   offset: const Offset(0, 4),
@@ -729,12 +749,11 @@ class _ScanScreenState extends State<ScanScreen> {
                                       h * 0.008,
                                     ),
                                     child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Expanded(
                                           child: Image.asset(
-                                            _getCropAsset(crop),
+                                            _getCropAsset(cropKey),
                                             fit: BoxFit.contain,
                                             errorBuilder: (_, __, ___) =>
                                                 Image.asset(
@@ -749,8 +768,9 @@ class _ScanScreenState extends State<ScanScreen> {
                                           ),
                                         ),
                                         SizedBox(height: h * 0.004),
+                                        // ── CHANGED: shows English display name
                                         Text(
-                                          _formatCropName(crop),
+                                          cropDisplay,
                                           textAlign: TextAlign.center,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -884,11 +904,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 ),
               ),
               child: selected
-                  ? const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    )
+                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
                   : null,
             ),
           ],
@@ -958,15 +974,11 @@ class _ScanScreenState extends State<ScanScreen> {
             Text(
               'This helps us read your soil photo accurately.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: w * 0.043,
-                color: const Color(0xFF707070),
-              ),
+              style: TextStyle(fontSize: w * 0.043, color: const Color(0xFF707070)),
             ),
             SizedBox(height: h * 0.04),
             _buildSoilChoiceCard(
-              w: w,
-              h: h,
+              w: w, h: h,
               selected: _wetDryScore == -1,
               title: 'Wet',
               subtitle: 'Soil is moist, muddy, or waterlogged',
@@ -976,8 +988,7 @@ class _ScanScreenState extends State<ScanScreen> {
               onTap: () => setState(() => _wetDryScore = -1),
             ),
             _buildSoilChoiceCard(
-              w: w,
-              h: h,
+              w: w, h: h,
               selected: _wetDryScore == 0,
               title: 'Normal',
               subtitle: 'Soil crumbles easily in hand',
@@ -987,8 +998,7 @@ class _ScanScreenState extends State<ScanScreen> {
               onTap: () => setState(() => _wetDryScore = 0),
             ),
             _buildSoilChoiceCard(
-              w: w,
-              h: h,
+              w: w, h: h,
               selected: _wetDryScore == 1,
               title: 'Dry',
               subtitle: 'Soil is hard, dusty, or cracked',
@@ -1014,32 +1024,20 @@ class _ScanScreenState extends State<ScanScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.waves_rounded,
-            size: w * 0.12,
-            color: const Color(0xFF7EC8E3),
-          ),
+          Icon(Icons.waves_rounded, size: w * 0.12, color: const Color(0xFF7EC8E3)),
           SizedBox(height: h * 0.01),
           Text(
             'How does water behave in your soil?',
-            style: TextStyle(
-              fontSize: w * 0.05,
-              fontWeight: FontWeight.w700,
-              color: textDark,
-            ),
+            style: TextStyle(fontSize: w * 0.05, fontWeight: FontWeight.w700, color: textDark),
           ),
           SizedBox(height: h * 0.005),
           Text(
             'Observe after a heavy rain or watering.',
-            style: TextStyle(
-              fontSize: w * 0.035,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: w * 0.035, color: Colors.grey.shade600),
           ),
           SizedBox(height: h * 0.025),
           _buildOptionCard(
-            w: w,
-            h: h,
+            w: w, h: h,
             selected: _drainageScore == -1,
             title: 'Water pools and stays',
             subtitle: 'Poor drainage',
@@ -1047,8 +1045,7 @@ class _ScanScreenState extends State<ScanScreen> {
             onTap: () => setState(() => _drainageScore = -1),
           ),
           _buildOptionCard(
-            w: w,
-            h: h,
+            w: w, h: h,
             selected: _drainageScore == 0,
             title: 'Normal absorption',
             subtitle: 'Moderate',
@@ -1056,8 +1053,7 @@ class _ScanScreenState extends State<ScanScreen> {
             onTap: () => setState(() => _drainageScore = 0),
           ),
           _buildOptionCard(
-            w: w,
-            h: h,
+            w: w, h: h,
             selected: _drainageScore == 1,
             title: 'Drains very fast',
             subtitle: 'Excessive',
@@ -1079,31 +1075,20 @@ class _ScanScreenState extends State<ScanScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.photo_camera_outlined,
-            size: w * 0.12,
-            color: darkGreen,
-          ),
+          Icon(Icons.photo_camera_outlined, size: w * 0.12, color: darkGreen),
           SizedBox(height: h * 0.01),
           Text(
             'Scan your soil',
-            style: TextStyle(
-              fontSize: w * 0.05,
-              fontWeight: FontWeight.w700,
-              color: textDark,
-            ),
+            style: TextStyle(fontSize: w * 0.05, fontWeight: FontWeight.w700, color: textDark),
           ),
           SizedBox(height: h * 0.005),
           Text(
             'Take a clear close-up photo of your soil surface.',
-            style: TextStyle(
-              fontSize: w * 0.035,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: w * 0.035, color: Colors.grey.shade600),
           ),
           SizedBox(height: h * 0.025),
           GestureDetector(
-            onTap: () => _pickImage(ImageSource.camera),
+            onTap: _isPickingImage ? null : () => _pickImage(ImageSource.camera),
             child: Container(
               width: double.infinity,
               height: h * 0.22,
@@ -1115,36 +1100,21 @@ class _ScanScreenState extends State<ScanScreen> {
               child: _selectedImage != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(15),
-                      child: Image.file(
-                        _selectedImage!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
+                      child: Image.file(_selectedImage!, fit: BoxFit.cover, width: double.infinity),
                     )
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.camera_alt_outlined,
-                          size: w * 0.1,
-                          color: darkGreen,
-                        ),
+                        Icon(Icons.camera_alt_outlined, size: w * 0.1, color: darkGreen),
                         SizedBox(height: h * 0.01),
                         Text(
                           'Tap to take a photo',
-                          style: TextStyle(
-                            fontSize: w * 0.04,
-                            fontWeight: FontWeight.w600,
-                            color: darkGreen,
-                          ),
+                          style: TextStyle(fontSize: w * 0.04, fontWeight: FontWeight.w600, color: darkGreen),
                         ),
                         SizedBox(height: h * 0.005),
                         Text(
                           'JPG or PNG - up to 10MB',
-                          style: TextStyle(
-                            fontSize: w * 0.03,
-                            color: Colors.grey.shade400,
-                          ),
+                          style: TextStyle(fontSize: w * 0.03, color: Colors.grey.shade400),
                         ),
                       ],
                     ),
@@ -1156,10 +1126,7 @@ class _ScanScreenState extends State<ScanScreen> {
               Expanded(child: Divider(color: Colors.grey.shade300)),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'or',
-                  style: TextStyle(color: Colors.grey.shade400),
-                ),
+                child: Text('or', style: TextStyle(color: Colors.grey.shade400)),
               ),
               Expanded(child: Divider(color: Colors.grey.shade300)),
             ],
@@ -1168,17 +1135,12 @@ class _ScanScreenState extends State<ScanScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => _pickImage(ImageSource.gallery),
+              onPressed: _isPickingImage ? null : () => _pickImage(ImageSource.gallery),
               icon: const Icon(Icons.photo_library_outlined, color: darkGreen),
-              label: const Text(
-                'Upload from gallery',
-                style: TextStyle(color: darkGreen),
-              ),
+              label: const Text('Upload from gallery', style: TextStyle(color: darkGreen)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: borderColor),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: EdgeInsets.symmetric(vertical: h * 0.018),
               ),
             ),
@@ -1192,11 +1154,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 Expanded(
                   child: Text(
                     _selectedImage!.path.split('/').last,
-                    style: TextStyle(
-                      fontSize: w * 0.032,
-                      color: darkGreen,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: w * 0.032, color: darkGreen, fontWeight: FontWeight.w500),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1208,32 +1166,26 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // STEP 5 — SCAN RESULT PREVIEW
-  // ══════════════════════════════════════════════════════════════
+  // =========================
+  // STEP 5
+  // =========================
 
   Widget _buildScanResultStep(double w, double h) {
     final result = _predictResult;
     if (result == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: darkGreen),
-      );
+      return const Center(child: CircularProgressIndicator(color: darkGreen));
     }
 
-    final soilType = result['soil_type'] ?? '-';
-    final omLevel = result['om_level'] ?? '-';
+    final soilType  = result['soil_type'] ?? '-';
+    final omLevel   = result['om_level'] ?? '-';
     final confidence = result['confidence'] ?? '-';
 
     Color chipColor(String value) {
       switch (value.toLowerCase()) {
-        case 'high':
-          return Colors.green.shade600;
-        case 'moderate':
-          return Colors.orange.shade600;
-        case 'low':
-          return Colors.red.shade400;
-        default:
-          return darkGreen;
+        case 'high':     return Colors.green.shade600;
+        case 'moderate': return Colors.orange.shade600;
+        case 'low':      return Colors.red.shade400;
+        default:         return darkGreen;
       }
     }
 
@@ -1246,38 +1198,23 @@ class _ScanScreenState extends State<ScanScreen> {
           Container(
             width: w * 0.18,
             height: w * 0.18,
-            decoration: const BoxDecoration(
-              color: darkGreen,
-              shape: BoxShape.circle,
-            ),
+            decoration: const BoxDecoration(color: darkGreen, shape: BoxShape.circle),
             child: const Icon(Icons.check, color: Colors.white, size: 40),
           ),
           SizedBox(height: h * 0.02),
           Text(
             'Soil Scan Complete',
-            style: TextStyle(
-              fontSize: w * 0.06,
-              fontWeight: FontWeight.w800,
-              color: textDark,
-            ),
+            style: TextStyle(fontSize: w * 0.06, fontWeight: FontWeight.w800, color: textDark),
           ),
           SizedBox(height: h * 0.005),
           Text(
             "Here's what we found in your sample.",
-            style: TextStyle(
-              fontSize: w * 0.035,
-              color: Colors.grey.shade500,
-            ),
+            style: TextStyle(fontSize: w * 0.035, color: Colors.grey.shade500),
           ),
           SizedBox(height: h * 0.025),
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image.file(
-              _selectedImage!,
-              width: double.infinity,
-              height: h * 0.25,
-              fit: BoxFit.cover,
-            ),
+            child: Image.file(_selectedImage!, width: double.infinity, height: h * 0.25, fit: BoxFit.cover),
           ),
           SizedBox(height: h * 0.025),
           Container(
@@ -1292,21 +1229,9 @@ class _ScanScreenState extends State<ScanScreen> {
               children: [
                 _resultRow(w, Icons.layers, 'Soil Type', soilType, darkGreen),
                 const Divider(height: 20),
-                _resultRow(
-                  w,
-                  Icons.eco,
-                  'Organic Matter',
-                  omLevel,
-                  chipColor(omLevel),
-                ),
+                _resultRow(w, Icons.eco, 'Organic Matter', omLevel, chipColor(omLevel)),
                 const Divider(height: 20),
-                _resultRow(
-                  w,
-                  Icons.bar_chart,
-                  'Confidence',
-                  confidence,
-                  darkGreen,
-                ),
+                _resultRow(w, Icons.bar_chart, 'Confidence', confidence, darkGreen),
               ],
             ),
           ),
@@ -1316,15 +1241,8 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  Widget _resultRow(
-    double w,
-    IconData icon,
-    String label,
-    String value,
-    Color chipColor,
-  ) {
+  Widget _resultRow(double w, IconData icon, String label, String value, Color chipColor) {
     final safeValue = value.isEmpty ? '-' : value;
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1332,13 +1250,7 @@ class _ScanScreenState extends State<ScanScreen> {
           children: [
             Icon(icon, size: w * 0.05, color: Colors.grey.shade500),
             SizedBox(width: w * 0.03),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: w * 0.038,
-                color: Colors.grey.shade600,
-              ),
-            ),
+            Text(label, style: TextStyle(fontSize: w * 0.038, color: Colors.grey.shade600)),
           ],
         ),
         Container(
@@ -1348,14 +1260,8 @@ class _ScanScreenState extends State<ScanScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
-            safeValue == '-'
-                ? '-'
-                : safeValue[0].toUpperCase() + safeValue.substring(1),
-            style: TextStyle(
-              fontSize: w * 0.035,
-              fontWeight: FontWeight.w700,
-              color: chipColor,
-            ),
+            safeValue == '-' ? '-' : safeValue[0].toUpperCase() + safeValue.substring(1),
+            style: TextStyle(fontSize: w * 0.035, fontWeight: FontWeight.w700, color: chipColor),
           ),
         ),
       ],
@@ -1415,17 +1321,13 @@ class _ScanScreenState extends State<ScanScreen> {
             return Expanded(
               child: Container(
                 height: 3,
-                color: isActiveLine
-                    ? const Color(0xFF8EC63F)
-                    : const Color(0xFFD9E5D0),
+                color: isActiveLine ? const Color(0xFF8EC63F) : const Color(0xFFD9E5D0),
               ),
             );
           }
-
           final stepIndex = index ~/ 2;
           final isCompleted = stepIndex < _currentStep;
           final isCurrent = stepIndex == _currentStep;
-
           return AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: w * 0.08,
@@ -1434,9 +1336,7 @@ class _ScanScreenState extends State<ScanScreen> {
               shape: BoxShape.circle,
               color: isCurrent ? const Color(0xFF8EC63F) : Colors.white,
               border: Border.all(
-                color: isCurrent || isCompleted
-                    ? const Color(0xFF8EC63F)
-                    : const Color(0xFFD9E5D0),
+                color: isCurrent || isCompleted ? const Color(0xFF8EC63F) : const Color(0xFFD9E5D0),
                 width: 2,
               ),
             ),
@@ -1464,7 +1364,6 @@ class _ScanScreenState extends State<ScanScreen> {
       'Step 4 of 5 - Take a Photo',
       'Step 5 of 5 - Scan Result',
     ];
-
     return Padding(
       padding: EdgeInsets.fromLTRB(w * 0.06, 18, w * 0.06, 10),
       child: Text(
