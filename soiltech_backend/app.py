@@ -41,443 +41,838 @@ with open(os.path.join(BASE, 'amendments.json')) as f:
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-# ══════════════════════════════════════════════════════════════
-# CROP ALIASES
-# Covers: Tagalog, Bisaya/Cebuano, Ilocano, English variants,
-# and common misspellings the AI consistently gets wrong.
-# Rule: if a word fails the AI twice, add it here.
-# ══════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CROP_ALIASES
+# Maps every possible input → canonical crop_requirements key
+# Covers: Bisaya/Cebuano, Tagalog, Ilocano, English, vowel shifts,
+#         consonant swaps, doubled/missing letters, mobile fat-finger errors
+# ══════════════════════════════════════════════════════════════════════════════
 
 CROP_ALIASES = {
-    # ── Rice ──────────────────────────────────────────────────
-    "humay":           "rice",   # Bisaya
-    "palay":           "rice",   # Tagalog
-    "bigas":           "rice",   # Tagalog (cooked)
-    "kanin":           "rice",   # cooked rice, still maps
-    "bugas":           "rice",   # Bisaya variant
 
-    # ── Corn ──────────────────────────────────────────────────
-    "mais":            "corn",   # Filipino universal
-    "maize":           "corn",
-    "corn":            "corn",
+    # ── Rice ──────────────────────────────────────────────────────────────────
+    "humay": "rice", "humay2": "rice", "humay rice": "rice",
+    "palay": "rice", "palai": "rice", "pallay": "rice", "palaay": "rice",
+    "bigas": "rice", "bugas": "rice", "buggas": "rice",
+    "kanin": "rice", "kanen": "rice", "kanon": "rice",
+    "rice": "rice", "rais": "rice", "rays": "rice", "ris": "rice",
+    "ryce": "rice", "ricee": "rice", "ryse": "rice", "riss": "rice",
+    "rise": "rice", "rce": "rice",
 
-    # ── Tomato ────────────────────────────────────────────────
-    "kamatis":         "tomato", # Tagalog/Bisaya
-    "kamatis2":        "tomato",
-    "tomatis":         "tomato", # common misspelling
-    "kamates":         "tomato", # common misspelling
+    # ── Corn ──────────────────────────────────────────────────────────────────
+    "mais": "corn", "mays": "corn", "maes": "corn", "maais": "corn",
+    "maiss": "corn", "maize": "corn", "maiz": "corn", "maise": "corn",
+    "corn": "corn", "korn": "corn", "corm": "corn", "cornn": "corn",
+    "cron": "corn", "conr": "corn", "coen": "corn",
 
-    # ── Eggplant ──────────────────────────────────────────────
-    "talong":          "eggplant", # Tagalog
-    "talong-talong":   "eggplant",
-    "tarong":          "eggplant", # Bisaya
-    "talond":          "eggplant", # misspelling
+    # ── Tomato ────────────────────────────────────────────────────────────────
+    "kamatis": "tomato", "kamatiz": "tomato", "kamates": "tomato",
+    "kamatis2": "tomato", "kamutes": "tomato", "komatis": "tomato",
+    "camatis": "tomato", "camatiz": "tomato", "kamatys": "tomato",
+    "kametes": "tomato", "kamotis": "tomato",
+    "tomato": "tomato", "tomatis": "tomato", "tomatoe": "tomato",
+    "tomatoes": "tomato", "tomat": "tomato", "tomatoo": "tomato",
+    "tometo": "tomato", "tomatto": "tomato", "tomaeto": "tomato",
+    "tomto": "tomato", "tamoto": "tomato", "tamato": "tomato",
+    "tomatos": "tomato",
 
-    # ── Kangkong ──────────────────────────────────────────────
-    "water spinach":   "kangkong",
-    "river spinach":   "kangkong",
-    "tangkong":        "kangkong", # Bisaya
-    "tinangkong":      "kangkong", # Bisaya variant
-    "kangkon":         "kangkong", # misspelling
-    "kangkung":        "kangkong", # Indonesian/Malay variant
-    "kang kong":       "kangkong",
+    # ── Eggplant ──────────────────────────────────────────────────────────────
+    "talong": "eggplant", "taloong": "eggplant", "tallong": "eggplant",
+    "talung": "eggplant", "talungg": "eggplant", "taloung": "eggplant",
+    "tarong": "eggplant", "taroong": "eggplant", "tarung": "eggplant",
+    "talond": "eggplant", "tarond": "eggplant", "taroung": "eggplant",
+    "talong2": "eggplant", "talungs": "eggplant",
+    "eggplant": "eggplant", "egplant": "eggplant", "eggplnat": "eggplant",
+    "igplant": "eggplant", "egplnat": "eggplant", "eggplan": "eggplant",
+    "egg plant": "eggplant", "egg plnt": "eggplant",
+    "eggplnt": "eggplant", "egplnt": "eggplant", "egplant2": "eggplant",
+    "eggpant": "eggplant", "eggplat": "eggplant", "egplannt": "eggplant",
+    "egglant": "eggplant", "eggpland": "eggplant",
+    "aubergine": "eggplant", "aubergene": "eggplant", "aubergin": "eggplant",
+    "brinjal": "eggplant", "bringal": "eggplant", "brinjel": "eggplant",
 
-    # ── Camote ────────────────────────────────────────────────
-    "sweet potato":    "camote",
-    "kamote":          "camote",  # Tagalog
-    "camoting kahoy":  "camote",
-    "tamus":           "camote",  # Bisaya
-    "kamoti":          "camote",  # Bisaya misspelling
+    # ── Kangkong ──────────────────────────────────────────────────────────────
+    "kangkong": "kangkong", "kangkon": "kangkong", "kangkung": "kangkong",
+    "kang kong": "kangkong", "kangkong2": "kangkong", "kangkung2": "kangkong",
+    "tangkong": "kangkong", "tangkon": "kangkong", "tangkung": "kangkong",
+    "tinangkong": "kangkong", "tinangkon": "kangkong",
+    "kangong": "kangkong", "kangkong3": "kangkong", "kangkong4": "kangkong",
+    "water spinach": "kangkong", "waterspinach": "kangkong",
+    "river spinach": "kangkong", "riverspinach": "kangkong",
+    "water spinch": "kangkong", "wtr spinach": "kangkong",
 
-    # ── Cassava ───────────────────────────────────────────────
-    "balinghoy":       "cassava", # Bisaya
-    "kamoteng kahoy":  "cassava", # Tagalog
-    "manioc":          "cassava",
-    "yuca":            "cassava",
-    "kasaba":          "cassava", # Bisaya variant
-    "cassaba":         "cassava", # misspelling
+    # ── Camote ────────────────────────────────────────────────────────────────
+    "camote": "camote", "kamote": "camote", "kamoti": "camote",
+    "kamute": "camote", "kamuti": "camote", "camuote": "camote",
+    "kamotee": "camote", "camoti": "camote", "kamotey": "camote",
+    "camotie": "camote", "kamuote": "camote", "kamotii": "camote",
+    "tamus": "camote", "tamis": "camote", "tammus": "camote",
+    "sweet potato": "camote", "sweetpotato": "camote",
+    "sweet patato": "camote", "sweat potato": "camote",
+    "swt potato": "camote", "sweet potatoe": "camote",
+    "sweet pottato": "camote", "swet potato": "camote",
+    "camoteng kahoy": "camote", "kamoteng kahoy": "camote",
+    "sweetpotato2": "camote",
 
-    # ── Onion ─────────────────────────────────────────────────
-    "sibuyas":         "onion",   # Tagalog
-    "bumbay":          "onion",   # Bisaya
-    "bombay":          "onion",   # Bisaya variant
-    "lasona":          "onion",   # Ilocano
-    "sibyas":          "onion",   # misspelling
-    "sibuas":          "onion",   # misspelling
+    # ── Cassava ───────────────────────────────────────────────────────────────
+    "cassava": "cassava", "kasava": "cassava", "cassaba": "cassava",
+    "casava": "cassava", "kasaba": "cassava", "kasabba": "cassava",
+    "cassavva": "cassava", "cassaava": "cassava", "casssava": "cassava",
+    "kassava": "cassava", "kasabba2": "cassava",
+    "balinghoy": "cassava", "balinghoi": "cassava", "balingoy": "cassava",
+    "balinghoy2": "cassava", "balinhoy": "cassava", "balingoy2": "cassava",
+    "manioc": "cassava", "maniok": "cassava", "mannioc": "cassava",
+    "yuca": "cassava", "yucca": "cassava", "yukka": "cassava",
 
-    # ── Garlic ────────────────────────────────────────────────
-    "bawang":          "garlic",  # Tagalog
-    "ahos":            "garlic",  # Bisaya/Cebuano
-    "ajos":            "garlic",  # Bisaya variant / Spanish
-    "aho":             "garlic",  # short Bisaya
-    "bawang putih":    "garlic",
-    "dawang":          "garlic",  # misspelling
+    # ── Onion ─────────────────────────────────────────────────────────────────
+    "sibuyas": "onion", "sibyas": "onion", "sibuas": "onion",
+    "sibuias": "onion", "sibuyas2": "onion", "sibuyaz": "onion",
+    "sibuyas3": "onion", "sibias": "onion", "sivuyas": "onion",
+    "bumbay": "onion", "bombay": "onion", "bumbai": "onion",
+    "bumbay2": "onion", "bombai": "onion",
+    "lasona": "onion", "lasuna": "onion", "lasona2": "onion",
+    "onion": "onion", "oniun": "onion", "onyon": "onion",
+    "onyun": "onion", "unyon": "onion", "unyun": "onion",
+    "onions": "onion", "onian": "onion", "onin": "onion",
+    "onyons": "onion", "onins": "onion",
 
-    # ── Mustasa ───────────────────────────────────────────────
-    "mustard":         "mustasa",
-    "mustard greens":  "mustasa",
-    "mustasa":         "mustasa",
-    "mustasa greens":  "mustasa",
+    # ── Garlic ────────────────────────────────────────────────────────────────
+    "bawang": "garlic", "bawng": "garlic", "bawwang": "garlic",
+    "dawang": "garlic", "bawangg": "garlic", "bawwng": "garlic",
+    "bavang": "garlic", "bawamg": "garlic",
+    "ahos": "garlic", "ahus": "garlic", "ajos": "garlic", "aho": "garlic",
+    "ahos2": "garlic", "ahoss": "garlic", "ajus": "garlic",
+    "garlic": "garlic", "garlik": "garlic", "garlicc": "garlic",
+    "garlick": "garlic", "garlic2": "garlic", "garlc": "garlic",
+    "garliic": "garlic", "galic": "garlic", "garlik2": "garlic",
+    "bawang putih": "garlic", "garlic bulb": "garlic",
 
-    # ── Ampalaya ──────────────────────────────────────────────
-    "bitter gourd":    "ampalaya",
-    "bitter melon":    "ampalaya",
-    "parya":           "ampalaya", # Bisaya
-    "paria":           "ampalaya", # Bisaya variant
-    "amplaya":         "ampalaya", # misspelling
-    "ampalaia":        "ampalaya", # misspelling
+    # ── Mustasa ───────────────────────────────────────────────────────────────
+    "mustasa": "mustasa", "mustaza": "mustasa", "mustassa": "mustasa",
+    "mustasaa": "mustasa", "mustaasa": "mustasa", "mustsa": "mustasa",
+    "mustassa2": "mustasa", "mustasya": "mustasa", "mustaza2": "mustasa",
+    "mustard": "mustasa", "mustard greens": "mustasa",
+    "mustasa greens": "mustasa", "mustasa leaf": "mustasa",
+    "mustart": "mustasa", "mustad": "mustasa", "mustrd": "mustasa",
+    "mustard green": "mustasa",
 
-    # ── Alugbati ──────────────────────────────────────────────
-    "malabar spinach": "alugbati",
-    "libato":          "alugbati", # Bisaya
-    "dundula":         "alugbati", # Bisaya variant
-    "alugbate":        "alugbati", # misspelling
+    # ── Ampalaya ──────────────────────────────────────────────────────────────
+    "ampalaya": "ampalaya", "amplaya": "ampalaya", "ampalaia": "ampalaya",
+    "ampalay": "ampalaya", "ampalya": "ampalaya", "ampalaiya": "ampalaya",
+    "ampalaia2": "ampalaya", "ampalaya2": "ampalaya", "ampalaia3": "ampalaya",
+    "amplaaya": "ampalaya", "ampalaaya": "ampalaya",
+    "parya": "ampalaya", "paria": "ampalaya", "pariya": "ampalaya",
+    "paria2": "ampalaya", "paryah": "ampalaya", "parya2": "ampalaya",
+    "bitter gourd": "ampalaya", "bittergourd": "ampalaya",
+    "bitter melon": "ampalaya", "bittermelon": "ampalaya",
+    "bitter gord": "ampalaya", "bitter melun": "ampalaya",
+    "biter melon": "ampalaya", "bitter melon2": "ampalaya",
 
-    # ── Sitaw ─────────────────────────────────────────────────
-    "batong":          "sitaw",   # Bisaya
-    "batongan":        "sitaw",   # Bisaya variant
-    "string beans":    "sitaw",
-    "string bean":     "sitaw",
-    "yardlong beans":  "sitaw",
-    "yard long beans": "sitaw",
-    "long beans":      "sitaw",
-    "sitao":           "sitaw",   # variant spelling
-    "hantak":          "sitaw",   # Bisaya
+    # ── Alugbati ──────────────────────────────────────────────────────────────
+    "alugbati": "alugbati", "alugbate": "alugbati", "alugbat": "alugbati",
+    "alugbatti": "alugbati", "alogbati": "alugbati", "alugbate2": "alugbati",
+    "alugboti": "alugbati", "alugbate3": "alugbati",
+    "libato": "alugbati", "libatu": "alugbati", "libato2": "alugbati",
+    "dundula": "alugbati", "dundola": "alugbati",
+    "malabar spinach": "alugbati", "malabarspinach": "alugbati",
+    "malabar spinch": "alugbati", "malabar spinash": "alugbati",
 
-    # ── Sili ──────────────────────────────────────────────────
-    "chili":           "sili",
-    "chilli":          "sili",
-    "pepper":          "sili",
-    "hot pepper":      "sili",
-    "lada":            "sili",    # Bisaya
-    "siling labuyo":   "sili",
-    "siling haba":     "sili",
+    # ── Sitaw ─────────────────────────────────────────────────────────────────
+    "sitaw": "sitaw", "sitao": "sitaw", "sitau": "sitaw",
+    "sitaw2": "sitaw", "sitaaw": "sitaw", "sitaow": "sitaw",
+    "batong": "sitaw", "batoong": "sitaw", "batung": "sitaw",
+    "battong": "sitaw", "batongan": "sitaw", "batong2": "sitaw",
+    "batungg": "sitaw", "battoong": "sitaw",
+    "hantak": "sitaw", "hantag": "sitaw", "hanntag": "sitaw",
+    "string beans": "sitaw", "string bean": "sitaw", "stringbeans": "sitaw",
+    "yardlong beans": "sitaw", "yard long beans": "sitaw",
+    "long beans": "sitaw", "longbeans": "sitaw",
+    "string bens": "sitaw", "strig beans": "sitaw",
+    "yard long bean": "sitaw", "yardlong bean": "sitaw",
+    "stringbean": "sitaw", "string ban": "sitaw",
 
-    # ── Kalamansi ─────────────────────────────────────────────
-    "calamansi":       "kalamansi",
-    "calamondin":      "kalamansi",
-    "kalamunding":     "kalamansi",
-    "kalamansi lime":  "kalamansi",
-    "lemonsito":       "kalamansi", # Bisaya/common
-    "limon":           "kalamansi", # Bisaya
+    # ── Sili ──────────────────────────────────────────────────────────────────
+    "sili": "sili", "silli": "sili", "sily": "sili",
+    "sili2": "sili", "silii": "sili", "siliy": "sili",
+    "chili": "sili", "chilli": "sili", "chilly": "sili",
+    "chili pepper": "sili", "chile": "sili", "chille": "sili",
+    "chilli pepper": "sili", "chili2": "sili",
+    "pepper": "sili", "hot pepper": "sili", "lada": "sili",
+    "lada2": "sili", "ladda": "sili",
+    "siling labuyo": "sili", "siling haba": "sili",
+    "siling labuio": "sili", "siling labyo": "sili",
 
-    # ── Malunggay ─────────────────────────────────────────────
-    "moringa":         "malunggay",
-    "drumstick tree":  "malunggay",
-    "kamunggay":       "malunggay", # Bisaya
-    "malungay":        "malunggay", # misspelling
-    "malungai":        "malunggay", # misspelling
+    # ── Kalamansi ─────────────────────────────────────────────────────────────
+    "kalamansi": "kalamansi", "calamansi": "kalamansi",
+    "calamansee": "kalamansi", "kalamansy": "kalamansi",
+    "kalamansee": "kalamansi", "kalamansei": "kalamansi",
+    "calamansii": "kalamansi", "kalamannsi": "kalamansi",
+    "calamondin": "kalamansi", "calamonding": "kalamansi",
+    "kalamunding": "kalamansi", "kalamansi lime": "kalamansi",
+    "lemonsito": "kalamansi", "lemonsitu": "kalamansi",
+    "lemoncito": "kalamansi", "lemonsitoo": "kalamansi",
+    "limon": "kalamansi", "limun": "kalamansi", "limon2": "kalamansi",
+    "lemon": "kalamansi", "limon3": "kalamansi",
 
-    # ── Tanglad ───────────────────────────────────────────────
-    "lemongrass":      "tanglad",
-    "salai":           "tanglad",  # Bisaya
-    "saly":            "tanglad",  # Bisaya variant
-    "tanglad":         "tanglad",
+    # ── Malunggay ─────────────────────────────────────────────────────────────
+    "malunggay": "malunggay", "malungay": "malunggay",
+    "malunggai": "malunggay", "malungai": "malunggay",
+    "malunggey": "malunggay", "malunggay2": "malunggay",
+    "malunggei": "malunggay", "malunggoy": "malunggay",
+    "malungey": "malunggay", "malunggays": "malunggay",
+    "kamunggay": "malunggay", "kamunggai": "malunggay",
+    "kamungay": "malunggay", "kamunggey": "malunggay",
+    "kamunggoy": "malunggay", "kamunggay2": "malunggay",
+    "kamungai": "malunggay", "kamungey": "malunggay",
+    "moringa": "malunggay", "muringa": "malunggay",
+    "moringga": "malunggay", "moringo": "malunggay",
+    "muringa2": "malunggay", "moringa2": "malunggay",
+    "morings": "malunggay", "muringga": "malunggay",
+    "morenga": "malunggay", "moringah": "malunggay",
+    "drumstick tree": "malunggay", "drumstick": "malunggay",
+    "drumstic": "malunggay", "drumstick2": "malunggay",
 
-    # ── Sayote ────────────────────────────────────────────────
-    "chayote":         "sayote",
-    "choko":           "sayote",
-    "pepino de agua":  "sayote",
-    "sayote":          "sayote",
-    "sayor":           "sayote",   # misspelling
+    # ── Tanglad ───────────────────────────────────────────────────────────────
+    "tanglad": "tanglad", "tanglads": "tanglad", "tagland": "tanglad",
+    "tangad": "tanglad", "tanglad2": "tanglad", "tangland": "tanglad",
+    "tanglads2": "tanglad", "tanngad": "tanglad",
+    "salai": "tanglad", "salay": "tanglad", "salai2": "tanglad",
+    "sallai": "tanglad", "salay2": "tanglad",
+    "lemongrass": "tanglad", "lemon grass": "tanglad",
+    "lemograss": "tanglad", "lemon gras": "tanglad",
+    "lemon grss": "tanglad", "lemongras": "tanglad",
+    "lemongrss": "tanglad", "lemon grass2": "tanglad",
 
-    # ── Singkamas ─────────────────────────────────────────────
-    "jicama":          "singkamas",
-    "turnip":          "singkamas",
-    "singkamas":       "singkamas",
-    "singkamas tuber": "singkamas",
+    # ── Sayote ────────────────────────────────────────────────────────────────
+    "sayote": "sayote", "sayoti": "sayote", "saiote": "sayote",
+    "sayor": "sayote", "sayote2": "sayote", "sayotee": "sayote",
+    "sayoti2": "sayote", "saioti": "sayote",
+    "chayote": "sayote", "chayoti": "sayote", "chayotee": "sayote",
+    "choko": "sayote", "choko2": "sayote",
+    "vegetable pear": "sayote", "veg pear": "sayote",
 
-    # ── Sigarilyas ────────────────────────────────────────────
-    "winged beans":    "sigarilyas",
-    "winged bean":     "sigarilyas",
-    "four angled bean":"sigarilyas",
-    "sigarillas":      "sigarilyas", # misspelling
-    "sigarilya":       "sigarilyas", # misspelling
+    # ── Singkamas ─────────────────────────────────────────────────────────────
+    "singkamas": "singkamas", "sengkamas": "singkamas",
+    "singkamaz": "singkamas", "singkamas tuber": "singkamas",
+    "singkammas": "singkamas", "singkamas2": "singkamas",
+    "sengkamaz": "singkamas", "singkamaz2": "singkamas",
+    "jicama": "singkamas", "hikama": "singkamas",
+    "jicamma": "singkamas", "hikamma": "singkamas",
+    "turnip": "singkamas", "turnips": "singkamas",
 
-    # ── Mani ──────────────────────────────────────────────────
-    "peanut":          "mani",
-    "peanuts":         "mani",
-    "groundnut":       "mani",
-    "mani":            "mani",
-    "manies":          "mani",     # misspelling
+    # ── Sigarilyas ────────────────────────────────────────────────────────────
+    "sigarilyas": "sigarilyas", "sigarilya": "sigarilyas",
+    "sigarillas": "sigarilyas", "sigarilias": "sigarilyas",
+    "sigarilyas2": "sigarilyas", "sigarilias2": "sigarilyas",
+    "sigarilyas3": "sigarilyas", "sigarillyas": "sigarilyas",
+    "winged beans": "sigarilyas", "winged bean": "sigarilyas",
+    "wingedbeans": "sigarilyas", "winged bens": "sigarilyas",
+    "four angled bean": "sigarilyas", "4 angled bean": "sigarilyas",
+    "4-angled bean": "sigarilyas",
 
-    # ── Kundol ────────────────────────────────────────────────
-    "wax gourd":       "kundol",
-    "winter melon":    "kundol",
-    "white gourd":     "kundol",
-    "kundol":          "kundol",
-    "kondol":          "kundol",   # misspelling
+    # ── Mani ──────────────────────────────────────────────────────────────────
+    "mani": "mani", "manies": "mani", "manny": "mani",
+    "maani": "mani", "manni": "mani", "mani2": "mani",
+    "peanut": "mani", "peanuts": "mani", "peanat": "mani",
+    "peanut2": "mani", "penut": "mani", "peanuts2": "mani",
+    "peanett": "mani", "peenut": "mani",
+    "groundnut": "mani", "ground nut": "mani",
+    "groundnuts": "mani", "groundnut2": "mani",
 
-    # ── Patola ────────────────────────────────────────────────
-    "sponge gourd":    "patola",
-    "luffa":           "patola",
-    "loofah":          "patola",
-    "patola":          "patola",
-    "patula":          "patola",   # misspelling
+    # ── Kundol ────────────────────────────────────────────────────────────────
+    "kundol": "kundol", "kondol": "kundol", "kundol2": "kundol",
+    "kondol2": "kundol", "kundoll": "kundol",
+    "wax gourd": "kundol", "waxgourd": "kundol",
+    "winter melon": "kundol", "wintermelon": "kundol",
+    "white gourd": "kundol", "whitegourd": "kundol",
+    "winter melon2": "kundol",
 
-    # ── Upo ───────────────────────────────────────────────────
-    "bottle gourd":    "upo",
-    "calabash":        "upo",
-    "upo":             "upo",
-    "upo squash":      "upo",
+    # ── Patola ────────────────────────────────────────────────────────────────
+    "patola": "patola", "patula": "patola", "pattola": "patola",
+    "patola2": "patola", "patolla": "patola", "patula2": "patola",
+    "sponge gourd": "patola", "spongegourd": "patola",
+    "luffa": "patola", "lufa": "patola", "luffa2": "patola",
+    "loofah": "patola", "loofa": "patola", "lufah": "patola",
 
-    # ── Pipino ────────────────────────────────────────────────
-    "cucumber":        "pipino",
-    "pepino":          "pipino",   # Spanish/Bisaya variant
-    "pepeno":          "pipino",   # misspelling
-    "pipino":          "pipino",
-    "pipinu":          "pipino",   # misspelling
+    # ── Upo ───────────────────────────────────────────────────────────────────
+    "upo": "upo", "upo squash": "upo", "upoo": "upo",
+    "upo2": "upo", "uppo": "upo",
+    "bottle gourd": "upo", "bottlegourd": "upo",
+    "calabash": "upo", "calabahs": "upo", "bottle gord": "upo",
 
-    # ── Luya ──────────────────────────────────────────────────
-    "ginger":          "luya",
-    "luya":            "luya",
-    "loya":            "luya",     # misspelling
-    "luia":            "luya",     # misspelling
+    # ── Pipino ────────────────────────────────────────────────────────────────
+    "pipino": "pipino", "pepino": "pipino", "pepeno": "pipino",
+    "pipinu": "pipino", "piipino": "pipino", "ppino": "pipino",
+    "pipino2": "pipino", "pepinu": "pipino", "piepino": "pipino",
+    "cucumber": "pipino", "cucmber": "pipino", "cuccumber": "pipino",
+    "cucuumber": "pipino", "cucumbr": "pipino", "cucumbe": "pipino",
+    "cucumbber": "pipino", "cuucumber": "pipino", "cucmbre": "pipino",
+    "cuecumber": "pipino", "cucumbar": "pipino",
 
-    # ── Pako ──────────────────────────────────────────────────
-    "fern":            "pako",
-    "vegetable fern":  "pako",
-    "pakis":           "pako",     # Tagalog
-    "pako":            "pako",
+    # ── Luya ──────────────────────────────────────────────────────────────────
+    "luya": "luya", "loya": "luya", "luia": "luya",
+    "luy a": "luya", "loy a": "luya", "luiya": "luya",
+    "loyya": "luya", "luya2": "luya", "loya2": "luya",
+    "luyya": "luya", "luiia": "luya",
+    "ginger": "luya", "gingger": "luya", "gingr": "luya",
+    "giner": "luya", "ginggr": "luya", "ginjer": "luya",
+    "gingger2": "luya", "ginger": "luya", "genger": "luya",
 
-    # ── Carrots ───────────────────────────────────────────────
-    "carrot":          "carrots",
-    "karot":           "carrots",  # Filipino
-    "karots":          "carrots",  # misspelling
-    "carots":          "carrots",  # misspelling
+    # ── Pako ──────────────────────────────────────────────────────────────────
+    "pako": "pako", "pakis": "pako", "pakko": "pako",
+    "pako2": "pako", "pakiss": "pako",
+    "fern": "pako", "vegetable fern": "pako", "vegfern": "pako",
+    "veg fern": "pako", "fern2": "pako",
 
-    # ── Potato ────────────────────────────────────────────────
-    "patatas":         "potato",   # Filipino
-    "potato":          "potato",
-    "patata":          "potato",   # singular
-    "potatoes":        "potato",
+    # ── Carrots ───────────────────────────────────────────────────────────────
+    "carrots": "carrots", "carrot": "carrots", "karot": "carrots",
+    "karots": "carrots", "carot": "carrots", "carots": "carrots",
+    "karrot": "carrots", "karrots": "carrots", "carrt": "carrots",
+    "karoot": "carrots", "carroot": "carrots", "carrrot": "carrots",
+    "carrot2": "carrots", "karot2": "carrots",
 
-    # ── Chinese Petchay ───────────────────────────────────────
+    # ── Potato ────────────────────────────────────────────────────────────────
+    "potato": "potato", "potatoes": "potato", "patatas": "potato",
+    "patata": "potato", "potatoe": "potato", "poteto": "potato",
+    "patato": "potato", "potatos": "potato", "patatas2": "potato",
+    "potaato": "potato", "pottato": "potato", "potatto": "potato",
+    "pottatoes": "potato", "potatos2": "potato",
+
+    # ── Chinese Petchay ───────────────────────────────────────────────────────
+    "chinese_petchay": "chinese_petchay",
+    "chinese petchay": "chinese_petchay",
+    "chinese pechay": "chinese_petchay",
+    "petsay": "chinese_petchay", "petsai": "chinese_petchay",
+    "petchay baguio": "chinese_petchay", "pechay baguio": "chinese_petchay",
+    "napa cabbage": "chinese_petchay", "napa": "chinese_petchay",
     "chinese cabbage": "chinese_petchay",
-    "petsay":          "chinese_petchay", # Filipino
-    "chinese pechay":  "chinese_petchay",
-    "pechay baguio":   "chinese_petchay",
-    "napa cabbage":    "chinese_petchay",
+    "chinise cabbage": "chinese_petchay",
+    "chines petchay": "chinese_petchay",
+    "china cabbage": "chinese_petchay",
+    "chinese petsay": "chinese_petchay",
+    "chines cabbage": "chinese_petchay",
 
-    # ── Green Onions ──────────────────────────────────────────
-    "green onion":     "green_onions",
-    "green onions":    "green_onions",
-    "scallion":        "green_onions",
-    "scallions":       "green_onions",
-    "spring onion":    "green_onions",
-    "spring onions":   "green_onions",
-    "sibuyas dahon":   "green_onions", # Tagalog
-    "sibuyas na dahon":"green_onions",
-    "dahon ng sibuyas":"green_onions",
-    "kutchay":         "green_onions", # Bisaya/common term
+    # ── Green Onions ──────────────────────────────────────────────────────────
+    "green_onions": "green_onions",
+    "green onions": "green_onions", "green onion": "green_onions",
+    "greenonion": "green_onions", "green onyun": "green_onions",
+    "grn onion": "green_onions", "gren onion": "green_onions",
+    "scallion": "green_onions", "scallions": "green_onions",
+    "scallian": "green_onions", "scallins": "green_onions",
+    "spring onion": "green_onions", "spring onions": "green_onions",
+    "sibuyas dahon": "green_onions", "sibuyas na dahon": "green_onions",
+    "dahon ng sibuyas": "green_onions",
+    "kutchay": "green_onions", "kuchay": "green_onions",
+    "kutchay2": "green_onions", "kuchay2": "green_onions",
+    "kutchey": "green_onions", "kuchai": "green_onions",
 
-    # ── Repolyo ───────────────────────────────────────────────
-    "cabbage":         "repolyo",
-    "repolyo":         "repolyo",
-    "repollo":         "repolyo",  # Spanish origin
-    "repullo":         "repolyo",  # misspelling
+    # ── Repolyo ───────────────────────────────────────────────────────────────
+    "repolyo": "repolyo", "repollo": "repolyo", "repullo": "repolyo",
+    "repolio": "repolyo", "repulyo": "repolyo", "repolyo2": "repolyo",
+    "repollyo": "repolyo", "repollio": "repolyo",
+    "cabbage": "repolyo", "cabbge": "repolyo", "kabbage": "repolyo",
+    "cabagge": "repolyo", "cabbagge": "repolyo", "cabbage2": "repolyo",
+    "cabbege": "repolyo", "cabage": "repolyo",
 
-    # ── Bokchoy ───────────────────────────────────────────────
-    "bok choy":        "bokchoy",
-    "pak choi":        "bokchoy",
-    "pok choy":        "bokchoy",  # misspelling
-    "bokchoi":         "bokchoy",  # misspelling
+    # ── Bokchoy ───────────────────────────────────────────────────────────────
+    "bokchoy": "bokchoy", "bok choy": "bokchoy", "bokchoi": "bokchoy",
+    "bok choi": "bokchoy", "pak choi": "bokchoy", "pok choy": "bokchoy",
+    "bochoy": "bokchoy", "bokchoy2": "bokchoy", "bokhoy": "bokchoy",
+    "bokchoi2": "bokchoy", "bok choy2": "bokchoy",
 
-    # ── Baguio Beans ──────────────────────────────────────────
-    "baguio beans":    "baguio_beans",
-    "green beans":     "baguio_beans",
-    "french beans":    "baguio_beans",
-    "snap beans":      "baguio_beans",
-    "habitchuelas":    "baguio_beans", # Bisaya
-    "habichuelas":     "baguio_beans", # Bisaya variant
+    # ── Papaya ────────────────────────────────────────────────────────────────
+    "papaya": "papaya", "papaia": "papaya", "papaiya": "papaya",
+    "kapaya": "papaya", "tapaya": "papaya", "papayya": "papaya",
+    "papya": "papaya", "papaia2": "papaya", "kapaiya": "papaya",
+    "tapaiya": "papaya", "papaya2": "papaya", "papaay": "papaya",
+    "pawpaw": "papaya", "pawpaw2": "papaya",
 
-    # ── Monggo ────────────────────────────────────────────────
-    "mung bean":       "monggo",
-    "mung beans":      "monggo",
-    "munggo":          "monggo",   # Tagalog variant
-    "green gram":      "monggo",
-    "mongo":           "monggo",   # common misspelling
-    "mungo":           "monggo",   # misspelling
+    # ── Baguio Beans ──────────────────────────────────────────────────────────
+    "baguio_beans": "baguio_beans",
+    "baguio beans": "baguio_beans", "baguio bean": "baguio_beans",
+    "green beans": "baguio_beans", "green bean": "baguio_beans",
+    "french beans": "baguio_beans", "french bean": "baguio_beans",
+    "snap beans": "baguio_beans", "snap bean": "baguio_beans",
+    "habitchuelas": "baguio_beans", "habichuelas": "baguio_beans",
+    "bagyo beans": "baguio_beans", "baguio bens": "baguio_beans",
+    "baguio bean2": "baguio_beans", "bagueo beans": "baguio_beans",
+    "bagyo bean": "baguio_beans",
 
-    # ── Turmeric ──────────────────────────────────────────────
-    "luyang dilaw":    "turmeric", # Tagalog
-    "dilaw":           "turmeric", # Tagalog (yellow)
-    "kalawag":         "turmeric", # Bisaya
-    "kunig":           "turmeric", # Bisaya variant
+    # ── Monggo ────────────────────────────────────────────────────────────────
+    "monggo": "monggo", "munggo": "monggo", "mongo": "monggo",
+    "mungo": "monggo", "monggoo": "monggo", "mongggo": "monggo",
+    "mung bean": "monggo", "mung beans": "monggo", "mungbean": "monggo",
+    "green gram": "monggo", "greengram": "monggo",
+    "mung bens": "monggo", "munggo2": "monggo",
 
-    # ── Asthma Plant ──────────────────────────────────────────
-    "tawa tawa":       "asthma_plant",
-    "tawa-tawa":       "asthma_plant",
-    "gatas gatas":     "asthma_plant", # Bisaya
-    "tawatawa":        "asthma_plant",
+    # ── Radish ────────────────────────────────────────────────────────────────
+    "radish": "radish", "raddish": "radish", "radis": "radish",
+    "labanos": "radish", "labanós": "radish", "labanu": "radish",
+    "rabanos": "radish", "labanos2": "radish", "labbanoss": "radish",
+    "labanus": "radish", "labanos3": "radish", "labanoss": "radish",
+    "raddis": "radish", "radich": "radish", "radiss": "radish",
 
-    # ── Lagundi ───────────────────────────────────────────────
+    # ── Turmeric ──────────────────────────────────────────────────────────────
+    "turmeric": "turmeric", "termeric": "turmeric", "tumeric": "turmeric",
+    "tumerik": "turmeric", "turmeric2": "turmeric", "turmerik": "turmeric",
+    "termeric2": "turmeric", "turmeric3": "turmeric",
+    "luyang dilaw": "turmeric", "luyang dilau": "turmeric",
+    "luyang dilaw2": "turmeric", "luyang dila": "turmeric",
+    "dilaw": "turmeric", "dilau": "turmeric",
+    "kalawag": "turmeric", "kalawog": "turmeric",
+    "kunig": "turmeric", "kuning": "turmeric",
+    "kalawag2": "turmeric", "kalawog2": "turmeric",
+
+    # ── Asthma Plant ──────────────────────────────────────────────────────────
+    "asthma_plant": "asthma_plant", "asthma plant": "asthma_plant",
+    "tawa tawa": "asthma_plant", "tawa-tawa": "asthma_plant",
+    "tawatawa": "asthma_plant", "tawa": "asthma_plant",
+    "tawa2": "asthma_plant", "tawa tawa2": "asthma_plant",
+    "tawa-tawa2": "asthma_plant",
+    "gatas gatas": "asthma_plant", "gatas-gatas": "asthma_plant",
+    "gatasgatas": "asthma_plant", "gatas gatas2": "asthma_plant",
+
+    # ── Lagundi ───────────────────────────────────────────────────────────────
+    "lagundi": "lagundi", "lagunde": "lagundi", "lagunti": "lagundi",
+    "lagundi2": "lagundi", "lagundy": "lagundi", "lagundii": "lagundi",
+    "dangla": "lagundi", "danggla": "lagundi", "dangla2": "lagundi",
     "five leaved chaste tree": "lagundi",
-    "lagundi":         "lagundi",
-    "dangla":          "lagundi",  # Bisaya
-    "lagunde":         "lagundi",  # misspelling
+    "five-leaved chaste tree": "lagundi",
 
-    # ── Basil ─────────────────────────────────────────────────
-    "basil":           "basil",
-    "sweet basil":     "basil",
-    "balanoy":         "basil",    # Filipino
-    "solasi":          "basil",    # Bisaya
+    # ── Basil ─────────────────────────────────────────────────────────────────
+    "basil": "basil", "bazil": "basil", "bassil": "basil",
+    "basil2": "basil", "basill": "basil", "bazill": "basil",
+    "sweet basil": "basil", "sweet bazil": "basil",
+    "balanoy": "basil", "balanoi": "basil", "balanoy2": "basil",
+    "balanoi2": "basil", "balanuy": "basil",
+    "solasi": "basil", "solasin": "basil", "solasi2": "basil",
 
-    # ── Pandan ────────────────────────────────────────────────
-    "pandan leaf":     "pandan",
-    "screwpine":       "pandan",
-    "pandan":          "pandan",
-    "pandan leaves":   "pandan",
-    "pandan plant":    "pandan",
-    "pangdan":         "pandan",   # Bisaya
+    # ── Pandan ────────────────────────────────────────────────────────────────
+    "pandan": "pandan", "pandaan": "pandan", "pandan leaf": "pandan",
+    "pandan leaves": "pandan", "pandan2": "pandan",
+    "pandann": "pandan", "pandaan2": "pandan",
+    "screwpine": "pandan", "screw pine": "pandan",
+    "pangdan": "pandan", "pangdan2": "pandan", "pandang": "pandan",
 
-    # ── Mint ──────────────────────────────────────────────────
-    "mint":            "mint",
-    "hierba buena":    "mint",     # Filipino/Spanish
-    "yerba buena":     "mint",     # Filipino
-    "herba buena":     "mint",     # misspelling
+    # ── Mint ──────────────────────────────────────────────────────────────────
+    "mint": "mint", "mnt": "mint", "minnt": "mint",
+    "mint2": "mint", "mintt": "mint", "mints": "mint",
+    "hierba buena": "mint", "yerba buena": "mint",
+    "herba buena": "mint", "yerbas buena": "mint",
+    "hierba buena2": "mint", "herba buena2": "mint",
+    "peppermint": "mint", "spearmint": "mint",
+    "pepermint": "mint", "spearemint": "mint",
 
-    # ── Ube ───────────────────────────────────────────────────
-    "purple yam":      "ube",
-    "yam":             "ube",
-    "ube":             "ube",
-    "ubi":             "ube",      # Bisaya
-    "violet yam":      "ube",
+    # ── Ube ───────────────────────────────────────────────────────────────────
+    "ube": "ube", "ubi": "ube", "ubbe": "ube", "ubee": "ube",
+    "ube2": "ube", "ubii": "ube", "ubee2": "ube",
+    "purple yam": "ube", "violet yam": "ube", "yam": "ube",
+    "purpleyam": "ube", "purple yam2": "ube",
 
-    # ── Pechay ────────────────────────────────────────────────
-    "pechay":          "pechay",
-    "petsay":          "pechay",
-    "chinese mustard": "pechay",
-    "baby pechay":     "pechay",
+    # ── Pechay ────────────────────────────────────────────────────────────────
+    "pechay": "pechay", "pitsay": "pechay", "pechey": "pechay",
+    "pechai": "pechay", "pechay2": "pechay", "petchay": "pechay",
+    "petsay pechay": "pechay", "baby pechay": "pechay",
+    "baby petsay": "pechay", "baby pechay2": "pechay",
+    "chinese mustard": "pechay", "chinese mustad": "pechay",
 
-    # ── Okra ──────────────────────────────────────────────────
-    "okra":            "okra",
-    "ladies finger":   "okra",
-    "lady finger":     "okra",
-    "okra plant":      "okra",
-    "saluyot":         "okra",     # sometimes confused
+    # ── Okra ──────────────────────────────────────────────────────────────────
+    "okra": "okra", "ukra": "okra", "okraa": "okra",
+    "okras": "okra", "okka": "okra", "okra2": "okra",
+    "okrra": "okra", "okkra": "okra", "okrah": "okra",
+    "ladies finger": "okra", "lady finger": "okra",
+    "ladyfinger": "okra", "ladies fingers": "okra",
+    "ladys finger": "okra", "ladiesfinger": "okra",
+    "ladyfinger2": "okra", "ladies figr": "okra",
 
-    # ── Lettuce ───────────────────────────────────────────────
-    "lettuce":         "lettuce",
-    "salad":           "lettuce",  # farmers often say this
-    "litsugas":        "lettuce",  # Filipino
-    "litsugad":        "lettuce",  # misspelling
+    # ── Lettuce ───────────────────────────────────────────────────────────────
+    "lettuce": "lettuce", "letuce": "lettuce", "lettuse": "lettuce",
+    "lettuces": "lettuce", "lettucee": "lettuce", "lettuse2": "lettuce",
+    "lletuce": "lettuce", "lettcue": "lettuce",
+    "litsugas": "lettuce", "litsugad": "lettuce",
+    "letius": "lettuce", "litsuga": "lettuce",
+    "salad": "lettuce",
 
-    # ── Papaya ────────────────────────────────────────────────
-    "papaya":          "papaya",
-    "papaia":          "papaya",   # misspelling
-    "kapaya":          "papaya",   # Bisaya
-    "tapaya":          "papaya",   # Bisaya variant
-    "pawpaw":          "papaya",
+    # ── Oregano ───────────────────────────────────────────────────────────────
+    "oregano": "oregano", "oregono": "oregano", "oreganno": "oregano",
+    "origano": "oregano", "oregnao": "oregano", "oregano2": "oregano",
+    "oreganoo": "oregano", "origano2": "oregano",
+    "suganda": "oregano", "wild oregano": "oregano",
+    "oregano leaf": "oregano", "suganda2": "oregano",
 
-    # ── Radish ────────────────────────────────────────────────
-    "radish":          "radish",
-    "labanos":         "radish",   # Filipino
-    "labanós":         "radish",
-    "rabanos":         "radish",   # misspelling
+    # ── Rosemary ──────────────────────────────────────────────────────────────
+    "rosemary": "rosemary", "rosmary": "rosemary", "rosemerry": "rosemary",
+    "rozzmarry": "rosemary", "rosemarry": "rosemary", "rosemary2": "rosemary",
+    "roseemary": "rosemary", "rosmarry": "rosemary",
+    "romero": "rosemary", "romero herb": "rosemary", "romero2": "rosemary",
 
-    # ── Oregano ───────────────────────────────────────────────
-    "oregano":         "oregano",
-    "oregono":         "oregano",  # misspelling
-    "suganda":         "oregano",  # Filipino medicinal name
-    "wild oregano":    "oregano",
-
-    # ── Rosemary ──────────────────────────────────────────────
-    "rosemary":        "rosemary",
-    "rosmary":         "rosemary", # misspelling
-    "romero":          "rosemary", # Spanish/Filipino
-
-    # ── Chives ────────────────────────────────────────────────
-    "chives":          "chives",
-    "kutchay":         "chives",   # Filipino (also used for green onions)
-    "kuchai":          "chives",   # variant
-    "chive":           "chives",   # singular
+    # ── Chives ────────────────────────────────────────────────────────────────
+    "chives": "chives", "chive": "chives", "chivs": "chives",
+    "chives2": "chives", "chivves": "chives",
+    "kuchai": "chives", "chinese chives": "chives",
+    "garlic chives": "chives", "kuchai2": "chives",
 }
 
-# ══════════════════════════════════════════════════════════════
-# CANONICAL DISPLAY
-# Preferred Filipino/Bisaya display name per crop key.
-# ══════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CANONICAL_DISPLAY  (Tagalog — default Filipino display)
+# Used when farmer types Tagalog, or as Bisaya fallback
+# ══════════════════════════════════════════════════════════════════════════════
 
 CANONICAL_DISPLAY = {
-    "rice":            "palay",
-    "corn":            "mais",
-    "tomato":          "kamatis",
-    "eggplant":        "talong",
-    "kangkong":        "kangkong",
-    "camote":          "kamote",
-    "cassava":         "cassava",
-    "onion":           "sibuyas",
-    "garlic":          "bawang",
-    "mustasa":         "mustasa",
-    "ampalaya":        "ampalaya",
-    "alugbati":        "alugbati",
-    "sitaw":           "sitaw",
-    "sili":            "sili",
-    "kalamansi":       "kalamansi",
-    "malunggay":       "malunggay",
-    "tanglad":         "tanglad",
-    "sayote":          "sayote",
-    "singkamas":       "singkamas",
-    "sigarilyas":      "sigarilyas",
-    "mani":            "mani",
-    "kundol":          "kundol",
-    "patola":          "patola",
-    "upo":             "upo",
-    "pipino":          "pipino",
-    "luya":            "luya",
-    "pako":            "pako",
-    "carrots":         "karot",
-    "potato":          "patatas",
-    "chinese_petchay": "petsay",
-    "green_onions":    "sibuyas dahon",
-    "repolyo":         "repolyo",
-    "bokchoy":         "bokchoy",
-    "baguio_beans":    "baguio beans",
-    "monggo":          "monggo",
-    "turmeric":        "luyang dilaw",
-    "asthma_plant":    "tawa-tawa",
-    "lagundi":         "lagundi",
-    "pandan":          "pandan",
-    "ube":             "ube",
-    "pechay":          "pechay",
-    "okra":            "okra",
-    "lettuce":         "lettuce",
-    "papaya":          "papaya",
-    "radish":          "labanos",
-    "oregano":         "oregano",
-    "basil":           "basil",
-    "mint":            "yerba buena",
-    "rosemary":        "rosemary",
-    "chives":          "kutchay",
+    "rice":            "Palay",
+    "corn":            "Mais",
+    "tomato":          "Kamatis",
+    "eggplant":        "Talong",
+    "kangkong":        "Kangkong",
+    "camote":          "Kamote",
+    "cassava":         "Cassava",
+    "onion":           "Sibuyas",
+    "garlic":          "Bawang",
+    "mustasa":         "Mustasa",
+    "ampalaya":        "Ampalaya",
+    "alugbati":        "Alugbati",
+    "sitaw":           "Sitaw",
+    "sili":            "Sili",
+    "kalamansi":       "Kalamansi",
+    "malunggay":       "Malunggay",
+    "tanglad":         "Tanglad",
+    "sayote":          "Sayote",
+    "singkamas":       "Singkamas",
+    "sigarilyas":      "Sigarilyas",
+    "mani":            "Mani",
+    "kundol":          "Kundol",
+    "patola":          "Patola",
+    "upo":             "Upo",
+    "pipino":          "Pipino",
+    "luya":            "Luya",
+    "pako":            "Pako",
+    "carrots":         "Karot",
+    "potato":          "Patatas",
+    "chinese_petchay": "Petsay",
+    "green_onions":    "Sibuyas Dahon",
+    "repolyo":         "Repolyo",
+    "bokchoy":         "Bokchoy",
+    "baguio_beans":    "Baguio Beans",
+    "monggo":          "Monggo",
+    "turmeric":        "Luyang Dilaw",
+    "asthma_plant":    "Tawa-Tawa",
+    "lagundi":         "Lagundi",
+    "pandan":          "Pandan",
+    "ube":             "Ube",
+    "pechay":          "Pechay",
+    "okra":            "Okra",
+    "lettuce":         "Lettuce",
+    "papaya":          "Papaya",
+    "radish":          "Labanos",
+    "oregano":         "Oregano",
+    "basil":           "Basil",
+    "mint":            "Yerba Buena",
+    "rosemary":        "Rosemary",
+    "chives":          "Kutchay",
 }
 
-# ══════════════════════════════════════════════════════════════
-# HELPERS
-# ══════════════════════════════════════════════════════════════
 
-def normalize_crop_name(raw_name):
+# ══════════════════════════════════════════════════════════════════════════════
+# BISAYA_DISPLAY
+# Canonical Bisaya/Cebuano display name per crop key.
+# Used when farmer types Bisaya.
+# Falls back to CANONICAL_DISPLAY (Tagalog) if None.
+# ══════════════════════════════════════════════════════════════════════════════
+
+BISAYA_DISPLAY = {
+    "rice":            "Humay",
+    "corn":            "Mais",           # same across languages
+    "tomato":          "Kamatis",        # same across languages
+    "eggplant":        "Tarong",
+    "kangkong":        "Tangkong",
+    "camote":          "Kamote",         # same
+    "cassava":         "Balinghoy",
+    "onion":           "Bumbay",
+    "garlic":          "Ahos",
+    "mustasa":         "Mustasa",        # same
+    "ampalaya":        "Parya",
+    "alugbati":        "Libato",
+    "sitaw":           "Sitaw",          # same (batong is a variant but sitaw is also used)
+    "sili":            "Sili",           # same
+    "kalamansi":       "Lemonsito",
+    "malunggay":       "Kamunggay",
+    "tanglad":         "Salai",
+    "sayote":          "Sayote",         # same
+    "singkamas":       "Singkamas",      # same
+    "sigarilyas":      "Sigarilyas",     # same
+    "mani":            "Mani",           # same
+    "kundol":          "Kundol",         # same
+    "patola":          "Patola",         # same
+    "upo":             "Upo",            # same
+    "pipino":          "Pipino",         # same
+    "luya":            "Luya",           # same (loya is misspelling, luya is Bisaya too)
+    "pako":            "Pakis",
+    "carrots":         "Karot",          # same
+    "potato":          "Patatas",        # same
+    "chinese_petchay": "Petsay",         # same
+    "green_onions":    "Kutchay",
+    "repolyo":         "Repolyo",        # same
+    "bokchoy":         "Bokchoy",        # same
+    "baguio_beans":    "Baguio Beans",   # same
+    "monggo":          "Monggo",         # same
+    "turmeric":        "Kalawag",
+    "asthma_plant":    "Gatas-Gatas",
+    "lagundi":         "Dangla",
+    "pandan":          "Pandang",
+    "ube":             "Ube",            # same across all languages
+    "pechay":          "Pechay",         # same
+    "okra":            "Okra",           # same
+    "lettuce":         "Lettuce",        # same
+    "papaya":          "Kapaya",
+    "radish":          "Labanos",        # same
+    "oregano":         "Oregano",        # same
+    "basil":           "Solasi",
+    "mint":            "Hierba Buena",
+    "rosemary":        "Rosemary",       # same
+    "chives":          "Kuchai",
+}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ENGLISH_DISPLAY
+# Used for default UI grid (no user input) and when farmer typed English.
+# Rule: if no English equivalent exists, use the most recognized name.
+# ══════════════════════════════════════════════════════════════════════════════
+
+ENGLISH_DISPLAY = {
+    "rice":            "Rice",
+    "corn":            "Corn",
+    "tomato":          "Tomato",
+    "eggplant":        "Eggplant",
+    "kangkong":        "Kangkong",       # no common English, keep name
+    "camote":          "Sweet Potato",
+    "cassava":         "Cassava",
+    "onion":           "Onion",
+    "garlic":          "Garlic",
+    "mustasa":         "Mustasa",        # no direct English, keep name
+    "ampalaya":        "Bitter Melon",
+    "alugbati":        "Malabar Spinach",
+    "sitaw":           "String Beans",
+    "sili":            "Chili",
+    "kalamansi":       "Kalamansi",      # recognized as-is globally
+    "malunggay":       "Moringa",
+    "tanglad":         "Lemongrass",
+    "sayote":          "Chayote",
+    "singkamas":       "Jicama",
+    "sigarilyas":      "Winged Beans",
+    "mani":            "Peanut",
+    "kundol":          "Winter Melon",
+    "patola":          "Luffa",
+    "upo":             "Bottle Gourd",
+    "pipino":          "Cucumber",
+    "luya":            "Ginger",
+    "pako":            "Vegetable Fern",
+    "carrots":         "Carrots",
+    "potato":          "Potato",
+    "chinese_petchay": "Chinese Cabbage",
+    "green_onions":    "Green Onions",
+    "repolyo":         "Cabbage",
+    "bokchoy":         "Bok Choy",
+    "baguio_beans":    "Green Beans",
+    "monggo":          "Mung Beans",
+    "turmeric":        "Turmeric",
+    "asthma_plant":    "Tawa-Tawa",      # no English, use recognized name
+    "lagundi":         "Lagundi",        # no English, use recognized name
+    "pandan":          "Pandan",         # recognized globally
+    "ube":             "Ube",            # recognized globally
+    "pechay":          "Pechay",         # recognized globally
+    "okra":            "Okra",
+    "lettuce":         "Lettuce",
+    "papaya":          "Papaya",
+    "radish":          "Radish",
+    "oregano":         "Oregano",
+    "basil":           "Basil",
+    "mint":            "Mint",
+    "rosemary":        "Rosemary",
+    "chives":          "Chives",
+}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LANGUAGE DETECTION
+# ══════════════════════════════════════════════════════════════════════════════
+
+# FIX (Problem 2): Expanded to include phonetic English misspellings
+ENGLISH_CROP_WORDS = {
+    # Clean English
+    "rice", "corn", "maize", "tomato", "tomatoes", "eggplant", "cucumber",
+    "ginger", "garlic", "onion", "onions", "carrot", "carrots", "potato",
+    "potatoes", "cabbage", "lettuce", "radish", "chili", "chilli", "chilly",
+    "pepper", "peanut", "peanuts", "basil", "mint", "oregano", "rosemary",
+    "chives", "turmeric", "cassava", "manioc", "yuca", "yucca", "luffa",
+    "loofah", "chayote", "jicama", "moringa", "lemongrass", "sweet potato",
+    "pandan", "bitter melon", "bitter gourd", "mung bean", "mung beans",
+    "string bean", "string beans", "winged bean", "winged beans",
+    "green bean", "green beans", "green onion", "green onions",
+    "scallion", "scallions", "spring onion", "bok choy", "napa cabbage",
+    "bottle gourd", "winter melon", "wax gourd", "sponge gourd",
+    "vegetable fern", "fern", "yam", "purple yam", "malabar spinach",
+    "water spinach", "river spinach", "aubergine", "brinjal",
+    "pawpaw", "papaya", "turnip",
+    # Phonetic English misspellings (Problem 2 fix)
+    "muringa", "muringga", "moringo", "morenga", "moringah",
+    "igplant", "egplant", "eggplnat", "egplnat", "eggplan",
+    "eggplnt", "egplnt", "eggpant", "eggplat", "egglant",
+    "tomatoe", "tomatoes", "tometo", "tomatto", "tomto",
+    "cucmber", "cuccumber", "cucuumber", "cucumbr", "cucumbe",
+    "cucumbber", "cuucumber", "cucmbre", "cuecumber", "cucumbar",
+    "gingger", "gingr", "giner", "ginjer", "ginger", "genger",
+    "aubergene", "aubergin", "bringal", "brinjel",
+    "penut", "peanat", "peanett", "peenut",
+    "lemongras", "lemongrss", "lemograss",
+    "tumeric", "termeric", "tumerik", "turmerik",
+    "chayoti", "chayotee",
+    "jiccama", "hikama",
+    "lufa", "lufah", "loofa",
+    "sweetpotato", "sweet patato", "sweat potato",
+    "maniok", "mannioc", "yukka",
+    "drumstic", "drumstick",
+    "scallian", "scallins",
+    "pawpaw",
+    "bitermelon", "bittergourd", "biter melon",
+    "bottlegourd", "wintermelon", "waxgourd",
+    "vegfern", "veg fern",
+    "purpleyam",
+    "peppermint", "spearmint", "pepermint",
+    "rosemarry", "rosmary", "rosemerry",
+    "bazil", "bassil",
+    "garlik", "garlicc", "garlick", "galic",
+    "raddish", "radis", "radiss", "radich",
+    "letuce", "lettuse", "letius",
+    "cabagge", "cabbge", "kabbage",
+    "carot", "carots", "karrot", "karrots", "carrt",
+    "potatoe", "poteto", "patato",
+}
+
+# Bisaya-specific words (not shared with Tagalog)
+BISAYA_CROP_WORDS = {
+    "humay", "bugas", "buggas", "kanon", "kanen",
+    "tarong", "taroong", "tarung", "tarond", "taroung",
+    "tangkong", "tangkon", "tangkung", "tinangkong", "tinangkon",
+    "kamuti", "kamute", "tamus", "tamis", "tammus",
+    "balinghoy", "balinghoi", "balingoy", "balinhoy",
+    "bumbay", "bombay", "bumbai", "bombai",
+    "ahos", "ahus", "ajos", "aho", "ahoss", "ajus",
+    "parya", "paria", "pariya", "paryah", "paria2",
+    "libato", "libatu", "dundula", "dundola",
+    "batong", "batoong", "batung", "battong", "batongan", "batungg",
+    "hantak", "hantag",
+    "lada", "ladda",
+    "lemonsito", "lemonsitu", "lemoncito",
+    "limon", "limun",
+    "kamunggay", "kamunggai", "kamungay", "kamunggey",
+    "kamunggoy", "kamungai", "kamungey",
+    "salai", "salay", "sallai",
+    "kasaba", "kasabba",
+    "lasona", "lasuna",
+    "kapaya", "tapaya", "kapaiya", "tapaiya",
+    "labanu", "labanus",
+    "kalawag", "kalawog", "kunig", "kuning",
+    "gatas gatas", "gatas-gatas", "gatasgatas",
+    "dangla", "danggla",
+    "solasi", "solasin",
+    "pangdan", "pandang",
+    "ubi", "ubii",
+    "pitsay",
+    "ukra",
+    "loya", "luia", "loy a",
+    "kuchai", "kuchai2",
+    "kutchay", "kutchay2", "kutchey",
+    "hierba buena",
+    "libato", "libatu",
+    "sengkamas",
+    "sitau", "sitao",
+}
+
+
+def detect_language(raw_input: str) -> str:
     """
-    Returns (matched_key, display_name) or (None, None) on no match.
+    Returns 'english', 'bisaya', or 'tagalog'.
+    Tagalog is the default fallback.
+    """
+    cleaned = raw_input.strip().lower()
+
+    if cleaned in ENGLISH_CROP_WORDS:
+        return "english"
+
+    if cleaned in BISAYA_CROP_WORDS:
+        return "bisaya"
+
+    # Heuristic: if multiple words and contains English pattern
+    words = cleaned.split()
+    english_count = sum(1 for w in words if w in ENGLISH_CROP_WORDS)
+    if english_count >= len(words) / 2 and len(words) > 1:
+        return "english"
+
+    return "tagalog"
+
+
+def get_display_name(matched_key: str, raw_input: str, lang: str) -> str:
+    """
+    Returns the display name in the correct language per spec:
+    - english input  → ENGLISH_DISPLAY  → CANONICAL_DISPLAY → key
+    - bisaya input   → BISAYA_DISPLAY   → CANONICAL_DISPLAY → ENGLISH_DISPLAY
+    - tagalog input  → CANONICAL_DISPLAY → ENGLISH_DISPLAY
+    - default (None) → CANONICAL_DISPLAY
+    """
+    if lang == "english":
+        return (
+            ENGLISH_DISPLAY.get(matched_key)
+            or CANONICAL_DISPLAY.get(matched_key)
+            or matched_key.replace("_", " ").title()
+        )
+
+    if lang == "bisaya":
+        return (
+            BISAYA_DISPLAY.get(matched_key)
+            or CANONICAL_DISPLAY.get(matched_key)
+            or ENGLISH_DISPLAY.get(matched_key)
+            or matched_key.replace("_", " ").title()
+        )
+
+    # tagalog (default)
+    return (
+        CANONICAL_DISPLAY.get(matched_key)
+        or ENGLISH_DISPLAY.get(matched_key)
+        or matched_key.replace("_", " ").title()
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def normalize_crop_name(raw_name: str):
+    """
+    Returns (matched_key, display_name) or (None, None).
 
     Step 1 — direct key match (free, instant)
-    Step 2 — alias dict: Tagalog, Bisaya, Ilocano, English,
-              and common misspellings (free, instant)
-    Step 3 — AI fallback for truly unknown inputs (generic phonetic rules)
+    Step 2 — alias dict (free, instant, covers 95%+ of inputs)
+    Step 3 — Groq AI fallback (language-aware, only for unknown inputs)
     """
     cleaned = raw_name.strip().lower()
 
     # Step 1 — direct key match
     if cleaned in crop_requirements:
-        return cleaned, raw_name.strip()
+        lang = detect_language(cleaned)
+        display = get_display_name(cleaned, raw_name.strip(), lang)
+        return cleaned, display
 
     # Step 2 — alias dict
     if cleaned in CROP_ALIASES:
         matched_key = CROP_ALIASES[cleaned]
-        display = CANONICAL_DISPLAY.get(matched_key, raw_name.strip())
+        lang = detect_language(cleaned)
+        display = get_display_name(matched_key, raw_name.strip(), lang)
         return matched_key, display
 
-    # Step 3 — AI fallback for anything not in the alias dict
+    # Step 3 — AI fallback
     crop_list_str = ', '.join(crop_requirements.keys())
     try:
         response = groq_client.chat.completions.create(
@@ -486,13 +881,19 @@ def normalize_crop_name(raw_name):
                 {
                     "role": "system",
                     "content": (
-                        "You are a crop name matcher for Filipino farmers in Mindanao and Visayas. "
-                        "You must reply in EXACTLY this format with no other text: key|display\n"
-                        "- key: copied exactly from the crop list, nothing else\n"
-                        "- display: corrected Filipino/Bisaya spelling if the farmer typed "
-                        "Filipino/Bisaya; English word as-is if they typed English\n"
-                        "- If no match at all: none|none\n"
-                        "Never add explanation, punctuation, or extra words. Only output key|display."
+                        "You are a crop name matcher for Filipino farmers in Mindanao and Visayas.\n"
+                        "Reply in EXACTLY this format with no other text: key|display|lang\n\n"
+                        "- key: exact key from the crop list, nothing else\n"
+                        "- display: corrected name in the SAME LANGUAGE the farmer typed\n"
+                        "  * Bisaya typed → corrected Bisaya name\n"
+                        "  * Tagalog typed → corrected Tagalog name\n"
+                        "  * English typed → corrected English name\n"
+                        "  * Bisaya with no translation → fallback to Tagalog\n"
+                        "  * Tagalog with no translation → fallback to English\n"
+                        "  * NEVER return empty display\n"
+                        "- lang: one of: bisaya, tagalog, english\n"
+                        "- No match: none|none|none\n\n"
+                        "No explanation. No punctuation. Only key|display|lang."
                     )
                 },
                 {
@@ -500,15 +901,13 @@ def normalize_crop_name(raw_name):
                     "content": (
                         f"Farmer typed: '{raw_name}'\n\n"
                         f"Crop list: {crop_list_str}\n\n"
-                        f"Phonetic matching rules:\n"
-                        f"1. Bisaya/Cebuano: vowels shift freely (a↔e↔i, o↔u), "
-                        f"consonants soften or swap (k↔g, p↔b, t↔d), "
-                        f"letters dropped or doubled when typing fast on mobile\n"
-                        f"2. Say the typed word out loud in Filipino — "
-                        f"if it sounds like a crop name, match it\n"
-                        f"3. Any Filipino regional dialect word for a crop is valid\n"
-                        f"4. English crop names with typos are valid\n\n"
-                        f"Reply only: key|display"
+                        f"Phonetic rules:\n"
+                        f"1. Bisaya: a↔e↔i, o↔u freely interchange; k↔g, p↔b, t↔d swap\n"
+                        f"2. Doubled or missing letters are common: taloong=talong\n"
+                        f"3. Spaces in the middle: 'luy a' = 'luya'\n"
+                        f"4. Say it aloud — if it sounds like a crop name, match it\n"
+                        f"5. English phonetic misspellings are valid: 'muringa' = moringa\n\n"
+                        f"Reply only: key|display|lang"
                     )
                 }
             ],
@@ -520,27 +919,25 @@ def normalize_crop_name(raw_name):
         print(f"[CROP AI] input='{raw_name}' → raw='{raw_result}'")
 
         cleaned_result = (
-            raw_result
-            .lower()
-            .strip()
+            raw_result.lower().strip()
             .strip('"').strip("'").strip('`').strip('.')
         )
 
         if '|' not in cleaned_result:
-            print(f"[CROP AI] No pipe separator found — skipping")
             return None, None
 
         parts = cleaned_result.split('|')
-        if len(parts) >= 2:
+        if len(parts) >= 3:
             matched_key = parts[0].strip().strip('"').strip("'")
             display     = parts[1].strip().strip('"').strip("'")
+            lang        = parts[2].strip()
 
-            print(f"[CROP AI] key='{matched_key}' display='{display}'")
+            print(f"[CROP AI] key='{matched_key}' display='{display}' lang='{lang}'")
 
             if matched_key in crop_requirements:
-                return matched_key, display
-            else:
-                print(f"[CROP AI] '{matched_key}' not found in crop_requirements")
+                if not display or display == "none":
+                    display = get_display_name(matched_key, raw_name.strip(), lang)
+                return matched_key, display.capitalize()
 
     except Exception as e:
         print(f"[CROP AI] Exception: {e}")
@@ -557,21 +954,19 @@ def estimate_om(image_bytes, wet_dry_score):
     crop_img = img[cy-size:cy+size, cx-size:cx+size]
     hsv = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
     v_mean = np.mean(hsv[:, :, 2])
-
     corrected_v = v_mean + (wet_dry_score * 15)
-
     if corrected_v < 76:
         om_level = 'high'
     elif corrected_v <= 127:
         om_level = 'moderate'
     else:
         om_level = 'low'
-
     return om_level, round(float(corrected_v), 2)
 
-# ══════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ROUTES
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 
 @app.route('/')
 def index():
@@ -581,6 +976,21 @@ def index():
 @app.route('/crops', methods=['GET'])
 def get_crops():
     return jsonify({'crops': list(crop_requirements.keys())})
+
+
+@app.route('/crops-display', methods=['GET'])
+def get_crops_display():
+    """
+    Returns crops with English display names for the default Flutter UI grid.
+    If no English equivalent, uses the most recognized name.
+    """
+    result = []
+    for key in crop_requirements.keys():
+        result.append({
+            'key':     key,
+            'display': ENGLISH_DISPLAY.get(key, key.replace('_', ' ').title())
+        })
+    return jsonify({'crops': result})
 
 
 @app.route('/normalize-crop', methods=['POST'])
@@ -605,7 +1015,6 @@ def predict():
         return jsonify({"error": "No image provided"}), 400
 
     wet_dry_score = int(request.form.get('wet_dry_score', 0))
-
     file = request.files['image']
     image_bytes = file.read()
 
@@ -705,7 +1114,7 @@ Organic matter level: {om_level}
 Crop chosen: {crop_name}
 Issues identified: {issues_text}
 
-In 3 to 4 plain sentences, explain what will likely happen if {farmer_name} 
+In 3 to 4 plain sentences, explain what will likely happen if {farmer_name}
 plants {crop_name} in this soil without fixing the issues.
 Address {farmer_name} directly by name at least once.
 Be specific, practical, and avoid technical jargon."""
@@ -721,7 +1130,7 @@ Be specific, practical, and avoid technical jargon."""
         return jsonify({'error': str(e)}), 500
 
 
-# ── Blueprint ──────────────────────────────────────────────────
+# ── Blueprint ───────────────────────────────────────────────────
 from chat_route import chat_bp
 app.register_blueprint(chat_bp)
 
