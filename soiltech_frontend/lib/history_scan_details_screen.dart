@@ -1,4 +1,4 @@
-// code 1
+// lib/widgets/history_scan_details_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,24 +16,16 @@ class ScanDetailScreen extends StatefulWidget {
 
 class _ScanDetailScreenState extends State<ScanDetailScreen> {
   // ── Constants ──────────────────────────────────────────────
-<<<<<<< HEAD
-  static const bgColor = Color(0xFFF1EFEA);
-  static const darkGreen = Color.fromARGB(255, 114, 168, 127);
-  static const borderColor = Color(0xFF7D9C74);
-  static const textDark = Color(0xFF0A2418);
-=======
   static const bgColor = Color(0xFFFBFAF5);
   static const darkGreen = Color.fromARGB(255, 114, 168, 127);
   static const borderColor = Color(0xFF7D9C74);
   static const textDark = Color(0xFF0A2418);
-
   static const deepGreen = Color(0xFF0A4A1D);
   static const navyText = Color(0xFF17324A);
   static const redColor = Color(0xFFFF4242);
   static const goldColor = Color(0xFFC79A23);
 
   static const String _chatAssistAsset = 'assets/logo/chatassist.png';
->>>>>>> origin/irish-frontend-final
 
   // ── Chat state ─────────────────────────────────────────────
   final List<Map<String, String>> _chatHistory = [];
@@ -61,7 +53,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   }
 
   // ── Load farmer name ───────────────────────────────────────
-
   Future<void> _loadFarmerName() async {
     try {
       final profile = await ProfileService().getFarmerProfile();
@@ -72,7 +63,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   }
 
   // ── Load chat ──────────────────────────────────────────────
-
   Future<void> _loadChatFromSupabase() async {
     final scanId = widget.scan['id'] as String?;
     if (scanId == null) return;
@@ -98,7 +88,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   }
 
   // ── Save chat message ──────────────────────────────────────
-
   Future<void> _saveChatMessage(String role, String message) async {
     final scanId = widget.scan['id'] as String?;
     if (scanId == null) return;
@@ -116,7 +105,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   }
 
   // ── Send chat ──────────────────────────────────────────────
-
   Future<void> _sendChatMessage() async {
     final text = _chatController.text.trim();
     if (text.isEmpty) return;
@@ -147,8 +135,8 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
 
       setState(() => _chatHistory.add({'role': 'assistant', 'content': reply}));
       await _saveChatMessage('assistant', reply);
-<<<<<<< HEAD
     } catch (e) {
+      // Joshua's timeout-aware error handling
       final isTimeout =
           e.toString().contains('TimeoutException') ||
           e.toString().contains('Connection refused') ||
@@ -161,13 +149,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
               : 'Sorry, something went wrong. Please try again.',
         }),
       );
-=======
-    } catch (_) {
-      setState(() => _chatHistory.add({
-            'role': 'assistant',
-            'content': 'Sorry, something went wrong. Please try again.',
-          }));
->>>>>>> origin/irish-frontend-final
     } finally {
       setState(() => _isLoadingChat = false);
       _scrollToBottom();
@@ -187,13 +168,8 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   }
 
   // ── Helpers ────────────────────────────────────────────────
-
   Color _chipColor(String? value) {
-<<<<<<< HEAD
     switch (value?.toLowerCase()) {
-=======
-    switch ( value?.toLowerCase()) {
->>>>>>> origin/irish-frontend-final
       case 'high':
         return Colors.green.shade600;
       case 'moderate':
@@ -213,74 +189,34 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
 
   String _cleanValue(dynamic value) {
     if (value == null) return '—';
-
     final text = value.toString();
     if (text.isEmpty) return '—';
-
-    if (text.toLowerCase() == 'not_suitable') {
-      return 'Not suitable';
-    }
-
+    if (text.toLowerCase() == 'not_suitable') return 'Not suitable';
     return text[0].toUpperCase() + text.substring(1);
   }
 
   void _openChatAssistPage() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => _ScanChatAssistPage(parent: this),
-      ),
+      MaterialPageRoute(builder: (_) => _ScanChatAssistPage(parent: this)),
     );
   }
 
   // ── Build ──────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     final h = MediaQuery.of(context).size.height;
     final scan = widget.scan;
     final imageUrl = scan['image_url'] as String?;
-
     final issues = List<String>.from(scan['issues'] ?? []);
     final amendments = List<String>.from(scan['amendments'] ?? []);
 
     return Scaffold(
       backgroundColor: bgColor,
-<<<<<<< HEAD
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        title: Text(
-          'Scan Detail',
-          style: TextStyle(
-            color: textDark,
-            fontWeight: FontWeight.w700,
-            fontSize: w * 0.045,
-          ),
-        ),
-        iconTheme: const IconThemeData(color: textDark),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: h * 0.02),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Scanned photo ──────────────────────────────
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: imageUrl != null && imageUrl.isNotEmpty
-                  ? Image.network(
-                      imageUrl,
-                      width: double.infinity,
-                      height: h * 0.25,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _photoPlaceholder(w, h),
-                    )
-                  : _photoPlaceholder(w, h),
-=======
       body: Stack(
         children: [
+          // Background gradient
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -297,6 +233,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
             ),
           ),
 
+          // Decorative eco icon
           Positioned(
             top: h * 0.08,
             right: -w * 0.10,
@@ -304,203 +241,14 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
               Icons.eco_rounded,
               color: darkGreen.withOpacity(0.08),
               size: w * 0.42,
->>>>>>> origin/irish-frontend-final
             ),
           ),
 
-<<<<<<< HEAD
-            SizedBox(height: h * 0.025),
-
-            // ── Soil scan complete ─────────────────────────
-            _sectionLabel('✔ Soil Scan Complete'),
-            SizedBox(height: h * 0.01),
-            _infoCard(w, [
-              _infoRow(
-                w,
-                Icons.layers,
-                'Soil Type',
-                scan['soil_type'] ?? '—',
-                darkGreen,
-              ),
-              _divider(),
-              _infoRow(
-                w,
-                Icons.eco,
-                'Organic Matter',
-                scan['om_level'] ?? '—',
-                _chipColor(scan['om_level']),
-              ),
-              _divider(),
-              _infoRow(
-                w,
-                Icons.bar_chart,
-                'Confidence',
-                scan['confidence'] ?? '—',
-                darkGreen,
-              ),
-              _divider(),
-              _infoRow(
-                w,
-                Icons.grass,
-                'Crop',
-                scan['crop_name'] ?? '—',
-                darkGreen,
-              ),
-            ]),
-
-            SizedBox(height: h * 0.025),
-
-            // ── Recommendation ─────────────────────────────
-            _sectionLabel('RECOMMENDATION'),
-            SizedBox(height: h * 0.01),
-            _infoCard(w, [
-              _infoRow(
-                w,
-                Icons.check_circle_outline,
-                'Compatibility',
-                scan['compatibility'] ?? '—',
-                _chipColor(scan['compatibility']),
-              ),
-            ]),
-
-            if ((List<String>.from(scan['issues'] ?? [])).isNotEmpty) ...[
-              SizedBox(height: h * 0.015),
-              _sectionLabel('Issues'),
-              SizedBox(height: h * 0.008),
-              ...List<String>.from(
-                scan['issues'],
-              ).map((i) => _bulletItem(w, i, Colors.red.shade300)),
-            ],
-
-            SizedBox(height: h * 0.015),
-            _sectionLabel('What to fix'),
-            SizedBox(height: h * 0.008),
-            ...List<String>.from(
-              scan['amendments'] ?? [],
-            ).map((a) => _bulletItem(w, a, darkGreen)),
-
-            // ── Explanation ────────────────────────────────
-            if (scan['explanation'] != null) ...[
-              SizedBox(height: h * 0.025),
-              _sectionLabel('WHAT HAPPENS IF YOU IGNORE THIS'),
-              SizedBox(height: h * 0.01),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(w * 0.04),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Text(
-                  scan['explanation'] as String,
-                  style: TextStyle(
-                    fontSize: w * 0.037,
-                    color: textDark,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ],
-
-            // ── Chat ───────────────────────────────────────
-            SizedBox(height: h * 0.03),
-            const Divider(),
-            _sectionLabel('ASK ABOUT THIS SCAN'),
-            SizedBox(height: h * 0.01),
-
-            Container(
-              height: h * 0.35,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: borderColor),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: _chatHistory.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Ask anything about your soil scan.',
-                        style: TextStyle(color: Colors.grey.shade400),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _chatScroll,
-                      padding: const EdgeInsets.all(10),
-                      itemCount: _chatHistory.length,
-                      itemBuilder: (context, index) {
-                        final msg = _chatHistory[index];
-                        final isUser = msg['role'] == 'user';
-                        return Align(
-                          alignment: isUser
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            padding: const EdgeInsets.all(10),
-                            constraints: BoxConstraints(maxWidth: w * 0.75),
-                            decoration: BoxDecoration(
-                              color: isUser
-                                  ? darkGreen.withOpacity(0.15)
-                                  : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              msg['content'] ?? '',
-                              style: TextStyle(fontSize: w * 0.035),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-
-            if (_isLoadingChat)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Center(
-                  child: CircularProgressIndicator(color: darkGreen),
-                ),
-              ),
-
-            SizedBox(height: h * 0.01),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _chatController,
-                    maxLines: null,
-                    minLines: 1,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      hintText: 'Ask about this soil scan...',
-                      hintStyle: TextStyle(color: Colors.grey.shade400),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: borderColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: darkGreen),
-                      ),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.send, color: darkGreen),
-                  onPressed: _isLoadingChat ? null : _sendChatMessage,
-=======
+          // Main content
           SafeArea(
             child: Column(
               children: [
+                // App bar row
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     w * 0.045,
@@ -578,25 +326,21 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                         ],
 
                         SizedBox(height: h * 0.022),
-
                         _fixCard(w, amendments),
 
                         if (scan['explanation'] != null) ...[
                           SizedBox(height: h * 0.022),
-                          _ignoreCard(
-                            w,
-                            _cleanValue(scan['explanation']),
-                          ),
+                          _ignoreCard(w, _cleanValue(scan['explanation'])),
                         ],
                       ],
                     ),
                   ),
->>>>>>> origin/irish-frontend-final
                 ),
               ],
             ),
           ),
 
+          // Floating chat button
           Positioned(
             right: w * 0.035,
             bottom: h * 0.035,
@@ -607,7 +351,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
     );
   }
 
-  // ── Detail UI widgets ──────────────────────────────────────
+  // ── UI widgets ─────────────────────────────────────────────
 
   Widget _topScanCard(
     double w,
@@ -617,17 +361,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   ) {
     return Container(
       width: double.infinity,
-<<<<<<< HEAD
-      height: h * 0.25,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Icon(
-        Icons.image_outlined,
-        size: w * 0.15,
-        color: Colors.grey.shade300,
-=======
       padding: EdgeInsets.all(w * 0.028),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.94),
@@ -655,9 +388,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                   )
                 : _photoPlaceholder(w, h),
           ),
-
           SizedBox(width: w * 0.04),
-
           Expanded(
             child: Column(
               children: [
@@ -689,10 +420,8 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                     ),
                   ],
                 ),
-
                 SizedBox(height: h * 0.015),
                 _thinDivider(),
-
                 _scanInfoRow(
                   w,
                   Icons.layers_rounded,
@@ -701,7 +430,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                   darkGreen,
                 ),
                 _thinDivider(),
-
                 _scanInfoRow(
                   w,
                   Icons.eco_rounded,
@@ -710,7 +438,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                   _chipColor(scan['om_level']),
                 ),
                 _thinDivider(),
-
                 _scanInfoRow(
                   w,
                   Icons.bar_chart_rounded,
@@ -719,7 +446,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                   darkGreen,
                 ),
                 _thinDivider(),
-
                 _scanInfoRow(
                   w,
                   Icons.grass_rounded,
@@ -731,44 +457,11 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
             ),
           ),
         ],
->>>>>>> origin/irish-frontend-final
       ),
     );
   }
 
-<<<<<<< HEAD
-  Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: Colors.grey.shade500,
-        letterSpacing: 0.8,
-      ),
-    );
-  }
-
-  Widget _infoCard(double w, List<Widget> children) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(w * 0.04),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
-    );
-  }
-
-  Widget _infoRow(
-=======
   Widget _scanInfoRow(
->>>>>>> origin/irish-frontend-final
     double w,
     IconData icon,
     String label,
@@ -786,37 +479,13 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
               color: Color(0xFFEFF6E7),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              color: darkGreen,
-              size: w * 0.031,
-            ),
+            child: Icon(icon, color: darkGreen, size: w * 0.031),
           ),
           SizedBox(width: w * 0.015),
           Expanded(
             child: Text(
               label,
               style: TextStyle(
-<<<<<<< HEAD
-                fontSize: w * 0.035,
-                color: Colors.grey.shade500,
-              ),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: chipColor.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            value[0].toUpperCase() + value.substring(1),
-            style: TextStyle(
-              fontSize: w * 0.032,
-              fontWeight: FontWeight.w700,
-              color: chipColor,
-=======
                 color: navyText,
                 fontSize: w * 0.028,
                 fontWeight: FontWeight.w500,
@@ -827,7 +496,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
             padding: EdgeInsets.symmetric(
               horizontal: w * 0.022,
               vertical: w * 0.007,
->>>>>>> origin/irish-frontend-final
             ),
             decoration: BoxDecoration(
               color: valueColor.withOpacity(0.13),
@@ -862,11 +530,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
             color: color.withOpacity(0.10),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            color: color,
-            size: w * 0.038,
-          ),
+          child: Icon(icon, color: color, size: w * 0.038),
         ),
         SizedBox(width: w * 0.014),
         Text(
@@ -881,27 +545,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
     );
   }
 
-<<<<<<< HEAD
-  Widget _divider() => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 6),
-    child: Divider(height: 1),
-  );
-
-  Widget _bulletItem(double w, String text, Color dotColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: dotColor,
-                shape: BoxShape.circle,
-=======
   Widget _compatibilityCard({
     required double w,
     required String label,
@@ -910,10 +553,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   }) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: w * 0.035,
-        vertical: w * 0.022,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: w * 0.035, vertical: w * 0.022),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.95),
         borderRadius: BorderRadius.circular(16),
@@ -949,7 +589,6 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                 color: navyText,
                 fontSize: w * 0.032,
                 fontWeight: FontWeight.w500,
->>>>>>> origin/irish-frontend-final
               ),
             ),
           ),
@@ -1020,9 +659,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
               ),
             ],
           ),
-
           SizedBox(height: w * 0.018),
-
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(w * 0.022),
@@ -1033,13 +670,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: issues
-                  .map(
-                    (issue) => _bulletText(
-                      w,
-                      text: issue,
-                      color: redColor,
-                    ),
-                  )
+                  .map((i) => _bulletText(w, text: i, color: redColor))
                   .toList(),
             ),
           ),
@@ -1092,9 +723,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
               ),
             ],
           ),
-
           SizedBox(height: w * 0.018),
-
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(w * 0.022),
@@ -1192,9 +821,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
               ),
             ],
           ),
-
           SizedBox(height: w * 0.018),
-
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(w * 0.022),
@@ -1216,75 +843,72 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
     );
   }
 
-Widget _chatFloatingButton(double w) {
-  return GestureDetector(
-    onTap: _openChatAssistPage,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: w * 0.28,
-          padding: EdgeInsets.symmetric(
-            horizontal: w * 0.02,
-            vertical: w * 0.012,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEAF4DD),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFB7D09A)),
-            boxShadow: [
-              BoxShadow(
-                color: deepGreen.withOpacity(0.12),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+  Widget _chatFloatingButton(double w) {
+    return GestureDetector(
+      onTap: _openChatAssistPage,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: w * 0.28,
+            padding: EdgeInsets.symmetric(
+              horizontal: w * 0.02,
+              vertical: w * 0.012,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF4DD),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFB7D09A)),
+              boxShadow: [
+                BoxShadow(
+                  color: deepGreen.withOpacity(0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Text(
+              'Ask about\nthis scan',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: darkGreen,
+                fontWeight: FontWeight.w900,
+                fontSize: w * 0.024,
+                height: 1.15,
               ),
-            ],
-          ),
-          child: Text(
-            'Ask about\nthis scan',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: darkGreen,
-              fontWeight: FontWeight.w900,
-              fontSize: w * 0.024,
-              height: 1.15,
             ),
           ),
-        ),
-        SizedBox(height: w * 0.01),
-        Container(
-          width: w * 0.13,
-          height: w * 0.13,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: const Color(0xFFB7D09A),
-              width: 2,
+          SizedBox(height: w * 0.01),
+          Container(
+            width: w * 0.13,
+            height: w * 0.13,
+            padding: EdgeInsets.all(w * 0.008),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFB7D09A), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: deepGreen.withOpacity(0.16),
+                  blurRadius: 14,
+                  offset: const Offset(0, 7),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: deepGreen.withOpacity(0.16),
-                blurRadius: 14,
-                offset: const Offset(0, 7),
+            child: Image.asset(
+              _chatAssistAsset,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.smart_toy_rounded,
+                color: darkGreen,
+                size: w * 0.075,
               ),
-            ],
-          ),
-          padding: EdgeInsets.all(w * 0.008),
-          child: Image.asset(
-            _chatAssistAsset,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Icon(
-              Icons.smart_toy_rounded,
-              color: darkGreen,
-              size: w * 0.075,
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _photoPlaceholder(double w, double h) {
     return Container(
@@ -1310,11 +934,7 @@ Widget _chatFloatingButton(double w) {
     );
   }
 
-  Widget _bulletText(
-    double w, {
-    required String text,
-    required Color color,
-  }) {
+  Widget _bulletText(double w, {required String text, required Color color}) {
     return Padding(
       padding: EdgeInsets.only(bottom: w * 0.014),
       child: Row(
@@ -1324,10 +944,7 @@ Widget _chatFloatingButton(double w) {
             margin: EdgeInsets.only(top: w * 0.01),
             width: w * 0.011,
             height: w * 0.011,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           SizedBox(width: w * 0.018),
           Expanded(
@@ -1400,6 +1017,7 @@ class _ScanChatAssistPageState extends State<_ScanChatAssistPage> {
           SafeArea(
             child: Column(
               children: [
+                // Header
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     w * 0.045,
@@ -1464,6 +1082,7 @@ class _ScanChatAssistPageState extends State<_ScanChatAssistPage> {
                   ),
                 ),
 
+                // Intro banner
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: w * 0.045),
                   child: Container(
@@ -1490,9 +1109,7 @@ class _ScanChatAssistPageState extends State<_ScanChatAssistPage> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFEAF4DD),
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFFB7D09A),
-                            ),
+                            border: Border.all(color: const Color(0xFFB7D09A)),
                           ),
                           child: Image.asset(
                             _chatAssistAsset,
@@ -1523,6 +1140,7 @@ class _ScanChatAssistPageState extends State<_ScanChatAssistPage> {
 
                 SizedBox(height: h * 0.014),
 
+                // Chat messages
                 Expanded(
                   child: Container(
                     margin: EdgeInsets.symmetric(horizontal: w * 0.045),
@@ -1549,7 +1167,6 @@ class _ScanChatAssistPageState extends State<_ScanChatAssistPage> {
                             itemBuilder: (context, index) {
                               final msg = chatHistory[index];
                               final isUser = msg['role'] == 'user';
-
                               return Align(
                                 alignment: isUser
                                     ? Alignment.centerRight
@@ -1613,6 +1230,7 @@ class _ScanChatAssistPageState extends State<_ScanChatAssistPage> {
                     ),
                   ),
 
+                // Input row
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     w * 0.045,
@@ -1640,9 +1258,7 @@ class _ScanChatAssistPageState extends State<_ScanChatAssistPage> {
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(18),
-                              borderSide: const BorderSide(
-                                color: borderColor,
-                              ),
+                              borderSide: const BorderSide(color: borderColor),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(18),

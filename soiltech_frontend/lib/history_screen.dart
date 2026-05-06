@@ -64,9 +64,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       setState(() => _isLoading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Load error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Load error: $e')));
     }
   }
 
@@ -107,9 +107,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _goScanDetails(Map<String, dynamic> scan) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ScanDetailScreen(scan: scan),
-      ),
+      MaterialPageRoute(builder: (_) => ScanDetailScreen(scan: scan)),
     );
   }
 
@@ -124,10 +122,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         title: const Text(
           'Scan History',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: textDark,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w900, color: textDark),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -136,10 +131,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         automaticallyImplyLeading: false,
         leading: IconButton(
           onPressed: _goHome,
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: darkGreen,
-          ),
+          icon: const Icon(Icons.arrow_back_rounded, color: darkGreen),
         ),
         actions: [
           Padding(
@@ -180,43 +172,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           Positioned.fill(
-            child: Container(
-              color: Colors.white.withOpacity(0.08),
-            ),
+            child: Container(color: Colors.white.withOpacity(0.08)),
           ),
           _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: darkGreen),
-                )
+              ? const Center(child: CircularProgressIndicator(color: darkGreen))
               : _scans.isEmpty
-                  ? _buildEmptyState(w, h)
-                  : RefreshIndicator(
-                      onRefresh: _loadHistory,
-                      color: darkGreen,
-                      child: ListView.builder(
-                        padding: EdgeInsets.fromLTRB(
-                          w * 0.04,
-                          h * 0.015,
-                          w * 0.04,
-                          h * 0.16,
-                        ),
-                        itemCount: _scans.length,
-                        itemBuilder: (context, index) {
-                          final scan = _scans[index];
-
-                          return _HistoryCard(
-                            scan: scan,
-                            chipColor: _chipColor(scan['om_level']),
-                            onTap: () => _goScanDetails(scan),
-                          );
-                        },
-                      ),
+              ? _buildEmptyState(w, h)
+              : RefreshIndicator(
+                  onRefresh: _loadHistory,
+                  color: darkGreen,
+                  child: ListView.builder(
+                    padding: EdgeInsets.fromLTRB(
+                      w * 0.04,
+                      h * 0.015,
+                      w * 0.04,
+                      h * 0.16,
                     ),
+                    itemCount: _scans.length,
+                    itemBuilder: (context, index) {
+                      final scan = _scans[index];
+                      return _HistoryCard(
+                        scan: scan,
+                        chipColor: _chipColor(scan['om_level']),
+                        onTap: () => _goScanDetails(scan),
+                      );
+                    },
+                  ),
+                ),
         ],
       ),
-
-      // selectedIndex: 2 makes the History icon white.
-      // The circle highlight still stays on Scan because SoilTechBottomNav handles that.
       bottomNavigationBar: SoilTechBottomNav(
         selectedIndex: 2,
         onHomeTap: _goHome,
@@ -235,9 +219,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           decoration: BoxDecoration(
             color: cream.withOpacity(0.82),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: borderColor.withOpacity(0.35),
-            ),
+            border: Border.all(color: borderColor.withOpacity(0.35)),
             boxShadow: [
               BoxShadow(
                 color: darkGreen.withOpacity(0.08),
@@ -303,6 +285,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// History Card
+// ─────────────────────────────────────────────────────────────
+
 class _HistoryCard extends StatelessWidget {
   final Map<String, dynamic> scan;
   final Color chipColor;
@@ -337,10 +323,7 @@ class _HistoryCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cream.withOpacity(0.9),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: borderColor.withOpacity(0.45),
-            width: 1,
-          ),
+          border: Border.all(color: borderColor.withOpacity(0.45), width: 1),
           boxShadow: [
             BoxShadow(
               color: darkGreen.withOpacity(0.08),
@@ -439,11 +422,7 @@ class _HistoryCard extends StatelessWidget {
                 color: primaryGreen.withOpacity(0.35),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                size: w * 0.045,
-                color: darkGreen,
-              ),
+              child: Icon(icon, size: w * 0.045, color: darkGreen),
             ),
             SizedBox(width: w * 0.025),
             Text(
