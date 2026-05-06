@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:soiltech/reusable/custom.dart';
 import 'package:soiltech/controllers/register_controller.dart';
-import 'package:soiltech/widgets/app_elevated_button.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -22,6 +20,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static const Color _backgroundColor = Color(0xFFF7F5EF);
   static const Color _borderColor = Color(0xFF4F6C46);
   static const Color _textColor = Color(0xFF355C30);
+
+  static const String _regisBgAsset = 'assets/logo/regis_bg.png';
 
   @override
   void dispose() {
@@ -52,226 +52,435 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final horizontalPadding = screenWidth * 0.07;
-    final buttonWidth = screenWidth * 0.70;
-    final inputWidth = screenWidth - (horizontalPadding * 2);
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: _backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── HEADER GRADIENT ──────────────────────────────
-            Container(
-              clipBehavior: Clip.antiAlias,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFDFFFC9),
-                    Color(0xFFC5F79D),
-                    Color(0xFF99EB6F),
-                    Color(0xFF73DD58),
-                  ],
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomRight: Radius.circular(120),
-                ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              _regisBgAsset,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: _backgroundColor,
               ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: screenWidth * 0.05,
-                  vertical: screenHeight * 0.02,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF123F1A),
+            ),
+          ),
+
+          SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      screenWidth * 0.06,
+                      screenHeight * 0.018,
+                      screenWidth * 0.06,
+                      0,
+                    ),
+                    child: Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.92),
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
                       child: IconButton(
-                        padding: EdgeInsets.zero,
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(
                           Icons.arrow_back,
-                          size: 18,
-                          color: Color(0xFFA8F07A),
+                          color: _textColor,
+                          size: 28,
                         ),
                       ),
                     ),
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'CREATE ACCOUNT',
+                  ),
+
+                  SizedBox(height: screenHeight * 0.032),
+
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.118,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Create Account',
                           style: TextStyle(
-                            fontSize: screenWidth * 0.07,
-                            fontWeight: FontWeight.w700,
+                            fontSize: screenWidth * 0.069,
+                            fontWeight: FontWeight.w900,
                             color: _textColor,
+                            letterSpacing: -0.6,
                           ),
                         ),
+                        SizedBox(height: screenHeight * 0.008),
+                        Text(
+                          'Join us and start your farming journey',
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.036,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF8B8F8A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: screenHeight * 0.048),
+
+                  Center(
+                    child: Container(
+                      width: double.infinity,
+                      height: screenHeight * 0.565,
+                      margin: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.04,
+                      ),
+                      padding: EdgeInsets.fromLTRB(
+                        screenWidth * 0.065,
+                        screenHeight * 0.026,
+                        screenWidth * 0.065,
+                        screenHeight * 0.006,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.94),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(42),
+                          topRight: Radius.circular(42),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _textColor.withOpacity(0.12),
+                            blurRadius: 30,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _RegisterInputField(
+                            label: 'Username',
+                            hint: 'Enter your username',
+                            controller: _username,
+                            icon: Icons.person_outline_rounded,
+                            screenWidth: screenWidth,
+                          ),
+
+                          SizedBox(height: screenHeight * 0.014),
+
+                          _RegisterInputField(
+                            label: 'Email',
+                            hint: 'Enter your email',
+                            controller: _email,
+                            icon: Icons.mail_outline_rounded,
+                            keyboardType: TextInputType.emailAddress,
+                            screenWidth: screenWidth,
+                          ),
+
+                          SizedBox(height: screenHeight * 0.014),
+
+                          _RegisterInputField(
+                            label: 'Password',
+                            hint: 'Enter your password',
+                            controller: _password,
+                            icon: Icons.lock_outline_rounded,
+                            obscureText: _isPasswordHidden,
+                            screenWidth: screenWidth,
+                            suffixIcon: IconButton(
+                              onPressed: () => setState(() {
+                                _isPasswordHidden = !_isPasswordHidden;
+                              }),
+                              icon: Icon(
+                                _isPasswordHidden
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: _borderColor,
+                                size: screenWidth * 0.055,
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(height: screenHeight * 0.014),
+
+                          _RegisterInputField(
+                            label: 'Confirm Password',
+                            hint: 'Confirm your password',
+                            controller: _confirmPassword,
+                            icon: Icons.lock_outline_rounded,
+                            obscureText: _isConfirmPasswordHidden,
+                            screenWidth: screenWidth,
+                            suffixIcon: IconButton(
+                              onPressed: () => setState(() {
+                                _isConfirmPasswordHidden =
+                                    !_isConfirmPasswordHidden;
+                              }),
+                              icon: Icon(
+                                _isConfirmPasswordHidden
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: _borderColor,
+                                size: screenWidth * 0.055,
+                              ),
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          _SignUpButton(
+                            screenWidth: screenWidth,
+                            onPressed: _handleRegister,
+                          ),
+
+                          SizedBox(height: screenHeight * 0.008),
+
+                          Center(
+                            child: GestureDetector(
+                              onTap: () => Navigator.pop(context),
+                              child: RichText(
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'Already have an account? ',
+                                      style: TextStyle(
+                                        fontSize: screenWidth * 0.035,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF767A78),
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'Log In',
+                                      style: TextStyle(
+                                        fontSize: screenWidth * 0.035,
+                                        fontWeight: FontWeight.w800,
+                                        color: _textColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 34),
-                  ],
-                ),
+                  ),
+
+                  const Spacer(),
+                ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-            // ── BODY CARD ─────────────────────────────────────
-            Expanded(
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF7F5EF),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(120),
+class _RegisterInputField extends StatelessWidget {
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final IconData icon;
+  final double screenWidth;
+  final bool obscureText;
+  final Widget? suffixIcon;
+  final TextInputType keyboardType;
+
+  const _RegisterInputField({
+    required this.label,
+    required this.hint,
+    required this.controller,
+    required this.icon,
+    required this.screenWidth,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.keyboardType = TextInputType.text,
+  });
+
+  static const Color _textColor = Color(0xFF355C30);
+  static const Color _borderColor = Color(0xFFDCECBD);
+  static const Color _lightGreen = Color(0xFFF0F6DF);
+  static const Color _hintColor = Color(0xFF9BA0A8);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: screenWidth * 0.036,
+            fontWeight: FontWeight.w800,
+            color: _textColor,
+          ),
+        ),
+
+        SizedBox(height: screenWidth * 0.016),
+
+        Container(
+          height: screenWidth * 0.112,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: _borderColor,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _textColor.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            obscureText: obscureText,
+            keyboardType: keyboardType,
+            style: TextStyle(
+              fontSize: screenWidth * 0.036,
+              fontWeight: FontWeight.w500,
+              color: _textColor,
+            ),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              hintText: hint,
+              hintStyle: TextStyle(
+                color: _hintColor,
+                fontSize: screenWidth * 0.036,
+                fontWeight: FontWeight.w500,
+              ),
+              prefixIcon: Padding(
+                padding: EdgeInsets.only(
+                  left: screenWidth * 0.026,
+                  right: screenWidth * 0.016,
+                ),
+                child: Container(
+                  width: screenWidth * 0.064,
+                  height: screenWidth * 0.064,
+                  decoration: const BoxDecoration(
+                    color: _lightGreen,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: _textColor,
+                    size: screenWidth * 0.039,
                   ),
                 ),
-                child: Column(
-                  children: [
-                    // ── SCROLLABLE FIELDS ─────────────────────
-                    Expanded(
-                      child: SingleChildScrollView(
-                        keyboardDismissBehavior:
-                            ScrollViewKeyboardDismissBehavior.onDrag,
-                        padding: EdgeInsets.fromLTRB(
-                          horizontalPadding,
-                          screenHeight * 0.06,
-                          horizontalPadding,
-                          screenHeight * 0.02,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // ── USERNAME ──────────────────────
-                            Text(
-                              'USERNAME',
-                              style: TextStyle(
-                                fontSize: screenWidth * 0.035,
-                                fontWeight: FontWeight.w700,
-                                color: _textColor,
-                              ),
-                            ),
-                            SizedBox(height: screenHeight * 0.008),
-                            CustomInput(
-                              controller: _username,
-                              hasError: false,
-                              width: inputWidth,
-                            ),
-
-                            SizedBox(height: screenHeight * 0.025),
-
-                            // ── EMAIL ─────────────────────────
-                            Text(
-                              'EMAIL',
-                              style: TextStyle(
-                                fontSize: screenWidth * 0.035,
-                                fontWeight: FontWeight.w700,
-                                color: _textColor,
-                              ),
-                            ),
-                            SizedBox(height: screenHeight * 0.008),
-                            CustomInput(
-                              controller: _email,
-                              hasError: false,
-                              width: inputWidth,
-                            ),
-
-                            SizedBox(height: screenHeight * 0.025),
-
-                            // ── PASSWORD ──────────────────────
-                            Text(
-                              'PASSWORD',
-                              style: TextStyle(
-                                fontSize: screenWidth * 0.035,
-                                fontWeight: FontWeight.w700,
-                                color: _textColor,
-                              ),
-                            ),
-                            SizedBox(height: screenHeight * 0.008),
-                            CustomInput(
-                              controller: _password,
-                              hasError: false,
-                              obscureText: _isPasswordHidden,
-                              width: inputWidth,
-                              suffixIcon: IconButton(
-                                onPressed: () => setState(() {
-                                  _isPasswordHidden = !_isPasswordHidden;
-                                }),
-                                icon: Icon(
-                                  _isPasswordHidden
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
-                                  size: 20,
-                                  color: _borderColor,
-                                ),
-                              ),
-                            ),
-
-                            SizedBox(height: screenHeight * 0.025),
-
-                            // ── CONFIRM PASSWORD ──────────────
-                            Text(
-                              'CONFIRM PASSWORD',
-                              style: TextStyle(
-                                fontSize: screenWidth * 0.035,
-                                fontWeight: FontWeight.w700,
-                                color: _textColor,
-                              ),
-                            ),
-                            SizedBox(height: screenHeight * 0.008),
-                            CustomInput(
-                              controller: _confirmPassword,
-                              hasError: false,
-                              obscureText: _isConfirmPasswordHidden,
-                              width: inputWidth,
-                              suffixIcon: IconButton(
-                                onPressed: () => setState(() {
-                                  _isConfirmPasswordHidden =
-                                      !_isConfirmPasswordHidden;
-                                }),
-                                icon: Icon(
-                                  _isConfirmPasswordHidden
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
-                                  size: 20,
-                                  color: _borderColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+              ),
+              prefixIconConstraints: BoxConstraints(
+                minWidth: screenWidth * 0.12,
+              ),
+              suffixIcon: suffixIcon ??
+                  Padding(
+                    padding: EdgeInsets.only(right: screenWidth * 0.03),
+                    child: Icon(
+                      Icons.eco_rounded,
+                      color: const Color(0xFFB9CF8D),
+                      size: screenWidth * 0.044,
                     ),
-
-                    // ── SIGN UP BUTTON — pinned to bottom ─────
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        0,
-                        0,
-                        0,
-                        screenHeight * 0.04,
-                      ),
-                      child: AppElevatedButton(
-                        label: 'SIGN UP',
-                        onPressed: _handleRegister,
-                        width: buttonWidth,
-                        fontSize: screenWidth * 0.041,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+              contentPadding: EdgeInsets.symmetric(
+                vertical: screenWidth * 0.029,
               ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SignUpButton extends StatelessWidget {
+  final double screenWidth;
+  final VoidCallback onPressed;
+
+  const _SignUpButton({
+    required this.screenWidth,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: screenWidth * 0.118,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Color(0xFFD7DE32),
+              Color(0xFF5D9D38),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF355C30).withOpacity(0.22),
+              blurRadius: 14,
+              offset: const Offset(0, 8),
+            ),
           ],
+        ),
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
+            padding: EdgeInsets.zero,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Center(
+                child: Text(
+                  'Sign Up',
+                  style: TextStyle(
+                    fontSize: screenWidth * 0.04,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: EdgeInsets.only(right: screenWidth * 0.055),
+                  child: Icon(
+                    Icons.spa_rounded,
+                    color: Colors.white.withOpacity(0.55),
+                    size: screenWidth * 0.062,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

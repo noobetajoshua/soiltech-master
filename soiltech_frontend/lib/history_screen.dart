@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'history_scan_details_screen.dart';
 import 'menu.dart';
 import 'scan_screen.dart';
+import 'profile.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -14,13 +16,15 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  // ── Constants ──────────────────────────────────────────────
   static const bgColor = Color(0xFFF5F8D6);
   static const primaryGreen = Color(0xFFC1D95C);
+  static const secondaryGreen = Color(0xFF80B155);
   static const darkGreen = Color(0xFF2F5E1A);
   static const borderColor = Color(0xFF80B155);
   static const textDark = Color(0xFF0A2418);
   static const cream = Color(0xFFF8F3D9);
+
+  static const String historyBgAsset = 'assets/logo/history_bg.png';
 
   List<Map<String, dynamic>> _scans = [];
   bool _isLoading = true;
@@ -33,7 +37,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _loadHistory() async {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       final rows = await Supabase.instance.client
@@ -46,17 +53,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
           .eq('user_id', user.id)
           .order('scanned_at', ascending: false);
 
+      if (!mounted) return;
+
       setState(() {
         _scans = List<Map<String, dynamic>>.from(rows);
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Load error: $e')),
-        );
-      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Load error: $e')),
+      );
     }
   }
 
@@ -87,6 +97,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  void _goProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+  }
+
+  void _goScanDetails(Map<String, dynamic> scan) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScanDetailScreen(scan: scan),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
@@ -94,118 +120,103 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
+      extendBody: true,
       appBar: AppBar(
         title: const Text(
           'Scan History',
           style: TextStyle(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
             color: textDark,
           ),
         ),
         centerTitle: true,
-        backgroundColor: bgColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: textDark,
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: darkGreen),
-            )
-          : _scans.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: w * 0.08),
-                    child: Container(
-                      padding: EdgeInsets.all(w * 0.07),
-                      decoration: BoxDecoration(
-                        color: cream.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: borderColor.withOpacity(0.35),
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.history_rounded,
-                            size: w * 0.16,
-                            color: darkGreen.withOpacity(0.65),
-                          ),
-                          SizedBox(height: h * 0.018),
-                          Text(
-                            'No scans yet',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: textDark,
-                              fontSize: w * 0.052,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: h * 0.008),
-                          Text(
-                            'Do your first soil scan to see your results here.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: textDark.withOpacity(0.55),
-                              fontSize: w * 0.035,
-                              height: 1.35,
-                            ),
-                          ),
-                          SizedBox(height: h * 0.022),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryGreen,
-                              foregroundColor: darkGreen,
-                              elevation: 0,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: w * 0.06,
-                                vertical: h * 0.015,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            onPressed: _goScan,
-                            icon: const Icon(Icons.document_scanner_rounded),
-                            label: const Text(
-                              'Scan Now',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ],
-                      ),
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          onPressed: _goHome,
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: darkGreen,
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: w * 0.04),
+            child: GestureDetector(
+              onTap: _goProfile,
+              child: Container(
+                width: w * 0.105,
+                height: w * 0.105,
+                decoration: BoxDecoration(
+                  color: cream.withOpacity(0.95),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: darkGreen.withOpacity(0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
                     ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadHistory,
+                  ],
+                ),
+                child: Icon(
+                  Icons.person_rounded,
                   color: darkGreen,
-                  child: ListView.builder(
-                    padding: EdgeInsets.fromLTRB(
-                      w * 0.04,
-                      h * 0.015,
-                      w * 0.04,
-                      h * 0.13,
-                    ),
-                    itemCount: _scans.length,
-                    itemBuilder: (context, index) {
-                      final scan = _scans[index];
-                      return _HistoryCard(
-                        scan: scan,
-                        chipColor: _chipColor(scan['om_level']),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ScanDetailScreen(scan: scan),
-                            ),
+                  size: w * 0.062,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              historyBgAsset,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(color: bgColor),
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.white.withOpacity(0.08),
+            ),
+          ),
+          _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: darkGreen),
+                )
+              : _scans.isEmpty
+                  ? _buildEmptyState(w, h)
+                  : RefreshIndicator(
+                      onRefresh: _loadHistory,
+                      color: darkGreen,
+                      child: ListView.builder(
+                        padding: EdgeInsets.fromLTRB(
+                          w * 0.04,
+                          h * 0.015,
+                          w * 0.04,
+                          h * 0.16,
+                        ),
+                        itemCount: _scans.length,
+                        itemBuilder: (context, index) {
+                          final scan = _scans[index];
+
+                          return _HistoryCard(
+                            scan: scan,
+                            chipColor: _chipColor(scan['om_level']),
+                            onTap: () => _goScanDetails(scan),
                           );
                         },
-                      );
-                    },
-                  ),
-                ),
+                      ),
+                    ),
+        ],
+      ),
+
+      // selectedIndex: 2 makes the History icon white.
+      // The circle highlight still stays on Scan because SoilTechBottomNav handles that.
       bottomNavigationBar: SoilTechBottomNav(
         selectedIndex: 2,
         onHomeTap: _goHome,
@@ -214,11 +225,84 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
+
+  Widget _buildEmptyState(double w, double h) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: w * 0.08),
+        child: Container(
+          padding: EdgeInsets.all(w * 0.07),
+          decoration: BoxDecoration(
+            color: cream.withOpacity(0.82),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: borderColor.withOpacity(0.35),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: darkGreen.withOpacity(0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.history_rounded,
+                size: w * 0.16,
+                color: darkGreen.withOpacity(0.65),
+              ),
+              SizedBox(height: h * 0.018),
+              Text(
+                'No scans yet',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: textDark,
+                  fontSize: w * 0.052,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: h * 0.008),
+              Text(
+                'Do your first soil scan to see your results here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: textDark.withOpacity(0.55),
+                  fontSize: w * 0.035,
+                  height: 1.35,
+                ),
+              ),
+              SizedBox(height: h * 0.022),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryGreen,
+                  foregroundColor: darkGreen,
+                  elevation: 0,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: w * 0.06,
+                    vertical: h * 0.015,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                onPressed: _goScan,
+                icon: const Icon(Icons.document_scanner_rounded),
+                label: const Text(
+                  'Scan Now',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-// ─────────────────────────────────────────────────────────────
-// History Card
-// ─────────────────────────────────────────────────────────────
 class _HistoryCard extends StatelessWidget {
   final Map<String, dynamic> scan;
   final Color chipColor;
@@ -240,6 +324,7 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     final h = MediaQuery.of(context).size.height;
+
     final imageUrl = scan['image_url'] as String?;
     final soilType = scan['soil_type']?.toString() ?? '—';
     final omLevel = scan['om_level']?.toString() ?? '—';
@@ -267,7 +352,6 @@ class _HistoryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Photo ────────────────────────────────────
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(22),
@@ -283,8 +367,6 @@ class _HistoryCard extends StatelessWidget {
                     )
                   : _photoPlaceholder(w, h),
             ),
-
-            // ── Soil info ─────────────────────────────────
             Padding(
               padding: EdgeInsets.all(w * 0.045),
               child: Column(
@@ -390,186 +472,6 @@ class _HistoryCard extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Bottom Navigation
-// ─────────────────────────────────────────────────────────────
-class SoilTechBottomNav extends StatelessWidget {
-  final int selectedIndex;
-  final VoidCallback onHomeTap;
-  final VoidCallback onScanTap;
-  final VoidCallback onHistoryTap;
-
-  const SoilTechBottomNav({
-    super.key,
-    required this.selectedIndex,
-    required this.onHomeTap,
-    required this.onScanTap,
-    required this.onHistoryTap,
-  });
-
-  static const Color bgColor = Color(0xFFF5F8D6);
-  static const Color primaryGreen = Color(0xFFC1D95C);
-  static const Color darkGreen = Color(0xFF2F5E1A);
-  static const Color cream = Color(0xFFF8F3D9);
-
-  @override
-  Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    final h = MediaQuery.of(context).size.height;
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          w * 0.075,
-          0,
-          w * 0.075,
-          h * 0.018,
-        ),
-        child: SizedBox(
-          height: h * 0.105,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.bottomCenter,
-            children: [
-              Container(
-                height: h * 0.072,
-                decoration: BoxDecoration(
-                  color: darkGreen,
-                  borderRadius: BorderRadius.circular(34),
-                  boxShadow: [
-                    BoxShadow(
-                      color: darkGreen.withOpacity(0.22),
-                      blurRadius: 22,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _NavItem(
-                      icon: Icons.home_rounded,
-                      isSelected: selectedIndex == 0,
-                      onTap: onHomeTap,
-                    ),
-                    _NavItem(
-                      icon: Icons.document_scanner_rounded,
-                      isSelected: selectedIndex == 1,
-                      onTap: onScanTap,
-                    ),
-                    _NavItem(
-                      icon: Icons.history_rounded,
-                      isSelected: selectedIndex == 2,
-                      onTap: onHistoryTap,
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 0,
-                left: _activeBubbleLeft(context, selectedIndex),
-                child: GestureDetector(
-                  onTap: selectedIndex == 0
-                      ? onHomeTap
-                      : selectedIndex == 1
-                          ? onScanTap
-                          : onHistoryTap,
-                  child: Container(
-                    width: h * 0.072,
-                    height: h * 0.072,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: darkGreen.withOpacity(0.16),
-                          blurRadius: 14,
-                          offset: const Offset(0, 7),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: h * 0.055,
-                        height: h * 0.055,
-                        decoration: const BoxDecoration(
-                          color: darkGreen,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _selectedIcon(selectedIndex),
-                          color: primaryGreen,
-                          size: w * 0.066,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  double _activeBubbleLeft(BuildContext context, int index) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final h = MediaQuery.of(context).size.height;
-
-    final horizontalPadding = screenWidth * 0.075;
-    final navWidth = screenWidth - (horizontalPadding * 2);
-    final bubbleSize = h * 0.072;
-
-    final itemWidth = navWidth / 3;
-    final centerX = itemWidth * index + itemWidth / 2;
-
-    return centerX - bubbleSize / 2;
-  }
-
-  IconData _selectedIcon(int index) {
-    switch (index) {
-      case 1:
-        return Icons.document_scanner_rounded;
-      case 2:
-        return Icons.history_rounded;
-      default:
-        return Icons.home_rounded;
-    }
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  static const Color cream = Color(0xFFF8F3D9);
-
-  @override
-  Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-
-    return Expanded(
-      child: IconButton(
-        onPressed: onTap,
-        icon: Icon(
-          icon,
-          size: w * 0.075,
-          color: isSelected ? Colors.transparent : cream,
-        ),
-      ),
     );
   }
 }

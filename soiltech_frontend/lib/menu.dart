@@ -14,6 +14,20 @@ class MenuScreen extends StatelessWidget {
   static const Color cream = Color(0xFFF8F3D9);
   static const Color textDark = Color(0xFF0A2418);
 
+  void _goToScan(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ScanScreen()),
+    );
+  }
+
+  void _goToHistory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const HistoryScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
@@ -28,7 +42,6 @@ class MenuScreen extends StatelessWidget {
           child: Column(
             children: [
               _HeroSection(w: w, h: h),
-
               Transform.translate(
                 offset: Offset(0, -h * 0.065),
                 child: Padding(
@@ -51,18 +64,8 @@ class MenuScreen extends StatelessWidget {
       bottomNavigationBar: SoilTechBottomNav(
         selectedIndex: 0,
         onHomeTap: () {},
-        onScanTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ScanScreen()),
-          );
-        },
-        onHistoryTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const HistoryScreen()),
-          );
-        },
+        onScanTap: () => _goToScan(context),
+        onHistoryTap: () => _goToHistory(context),
       ),
     );
   }
@@ -94,7 +97,6 @@ class _HeroSection extends StatelessWidget {
               alignment: Alignment.center,
             ),
           ),
-
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -110,20 +112,7 @@ class _HeroSection extends StatelessWidget {
               ),
             ),
           ),
-
-          Positioned(
-            top: h * 0.025,
-            left: w * 0.045,
-            child: IconButton(
-              icon: Icon(
-                Icons.menu_rounded,
-                color: darkGreen,
-                size: w * 0.08,
-              ),
-              onPressed: () {},
-            ),
-          ),
-
+          
           Positioned(
             top: h * 0.027,
             right: w * 0.05,
@@ -158,7 +147,6 @@ class _HeroSection extends StatelessWidget {
               ),
             ),
           ),
-
           Positioned(
             left: w * 0.075,
             top: h * 0.12,
@@ -224,6 +212,13 @@ class _ScanCard extends StatelessWidget {
   static const Color cream = Color(0xFFF8F3D9);
   static const Color textDark = Color(0xFF0A2418);
 
+  void _goToScan(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ScanScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -278,14 +273,7 @@ class _ScanCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(28),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ScanScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: () => _goToScan(context),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -308,43 +296,44 @@ class _ScanCard extends StatelessWidget {
               ],
             ),
           ),
-
           SizedBox(width: w * 0.025),
-
-          Container(
-            width: w * 0.22,
-            height: w * 0.22,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFC1D95C),
-                  Color(0xFF80B155),
-                  Color(0xFF2F5E1A),
+          GestureDetector(
+            onTap: () => _goToScan(context),
+            child: Container(
+              width: w * 0.22,
+              height: w * 0.22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFC1D95C),
+                    Color(0xFF80B155),
+                    Color(0xFF2F5E1A),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: darkGreen.withOpacity(0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 7),
+                  ),
                 ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: darkGreen.withOpacity(0.22),
-                  blurRadius: 14,
-                  offset: const Offset(0, 7),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Container(
-                width: w * 0.165,
-                height: w * 0.165,
-                decoration: BoxDecoration(
-                  color: darkGreen.withOpacity(0.92),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.camera_alt_rounded,
-                  color: cream,
-                  size: w * 0.09,
+              child: Center(
+                child: Container(
+                  width: w * 0.165,
+                  height: w * 0.165,
+                  decoration: BoxDecoration(
+                    color: darkGreen.withOpacity(0.92),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.camera_alt_rounded,
+                    color: cream,
+                    size: w * 0.09,
+                  ),
                 ),
               ),
             ),
@@ -364,9 +353,7 @@ class _InsightsSection extends StatelessWidget {
     required this.h,
   });
 
-  static const Color primaryGreen = Color(0xFFC1D95C);
   static const Color darkGreen = Color(0xFF2F5E1A);
-  static const Color textDark = Color(0xFF0A2418);
 
   @override
   Widget build(BuildContext context) {
@@ -374,7 +361,7 @@ class _InsightsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'We get insights',
+          'Get insights on',
           style: TextStyle(
             fontSize: w * 0.049,
             fontWeight: FontWeight.w900,
@@ -688,31 +675,30 @@ class SoilTechBottomNav extends StatelessWidget {
                   children: [
                     _NavItem(
                       icon: Icons.home_rounded,
-                      isSelected: selectedIndex == 0,
+                      isWhite: selectedIndex == 0,
                       onTap: onHomeTap,
                     ),
                     _NavItem(
                       icon: Icons.document_scanner_rounded,
-                      isSelected: selectedIndex == 1,
+                      isWhite: false,
+                      isHiddenForScanBubble: true,
                       onTap: onScanTap,
                     ),
                     _NavItem(
                       icon: Icons.history_rounded,
-                      isSelected: selectedIndex == 2,
+                      isWhite: selectedIndex == 2,
                       onTap: onHistoryTap,
                     ),
                   ],
                 ),
               ),
+
+              // Scan is always the only highlighted circular button.
               Positioned(
                 top: 0,
-                left: _activeBubbleLeft(context, selectedIndex),
+                left: _scanBubbleLeft(context),
                 child: GestureDetector(
-                  onTap: selectedIndex == 0
-                      ? onHomeTap
-                      : selectedIndex == 1
-                          ? onScanTap
-                          : onHistoryTap,
+                  onTap: onScanTap,
                   child: Container(
                     width: h * 0.074,
                     height: h * 0.074,
@@ -751,7 +737,7 @@ class SoilTechBottomNav extends StatelessWidget {
                           ),
                         ),
                         child: Icon(
-                          _selectedIcon(selectedIndex),
+                          Icons.document_scanner_rounded,
                           color: cream,
                           size: w * 0.066,
                         ),
@@ -767,7 +753,7 @@ class SoilTechBottomNav extends StatelessWidget {
     );
   }
 
-  double _activeBubbleLeft(BuildContext context, int index) {
+  double _scanBubbleLeft(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final h = MediaQuery.of(context).size.height;
 
@@ -776,32 +762,23 @@ class SoilTechBottomNav extends StatelessWidget {
     final bubbleSize = h * 0.074;
 
     final itemWidth = navWidth / 3;
-    final centerX = itemWidth * index + itemWidth / 2;
+    final centerX = itemWidth * 1 + itemWidth / 2;
 
     return centerX - bubbleSize / 2;
-  }
-
-  IconData _selectedIcon(int index) {
-    switch (index) {
-      case 1:
-        return Icons.document_scanner_rounded;
-      case 2:
-        return Icons.history_rounded;
-      default:
-        return Icons.home_rounded;
-    }
   }
 }
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
-  final bool isSelected;
+  final bool isWhite;
+  final bool isHiddenForScanBubble;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
-    required this.isSelected,
+    required this.isWhite,
     required this.onTap,
+    this.isHiddenForScanBubble = false,
   });
 
   static const Color darkGreen = Color(0xFF2F5E1A);
@@ -816,7 +793,11 @@ class _NavItem extends StatelessWidget {
         icon: Icon(
           icon,
           size: w * 0.075,
-          color: isSelected ? Colors.transparent : darkGreen,
+          color: isHiddenForScanBubble
+              ? Colors.transparent
+              : isWhite
+                  ? Colors.white
+                  : darkGreen,
         ),
       ),
     );
